@@ -1,0 +1,67 @@
+// filepath: docs/architecture/images/modern_stack.svg
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="1200px" height="800px" viewBox="0 0 1200 800" xmlns="http://www.w3.org/2000/svg">
+  <!-- Title -->
+  <text x="600" y="50" font-family="Arial" font-size="24" text-anchor="middle" font-weight="bold">Modern Data Platform Architecture</text>
+
+  <!-- Source Systems -->
+  <rect x="50" y="100" width="150" height="600" fill="#f0f0f0" stroke="#333" stroke-width="2" rx="5"/>
+  <text x="125" y="150" font-family="Arial" font-size="16" text-anchor="middle">Source Systems</text>
+
+  <!-- Ingestion Layer -->
+  <rect x="250" y="100" width="150" height="600" fill="#e6f3ff" stroke="#333" stroke-width="2" rx="5"/>
+  <text x="325" y="150" font-family="Arial" font-size="16" text-anchor="middle">Ingestion Layer</text>
+  <text x="325" y="180" font-family="Arial" font-size="12" text-anchor="middle">Airbyte | DLT</text>
+
+  <!-- Orchestration -->
+  <rect x="450" y="100" width="150" height="600" fill="#f0f7f0" stroke="#333" stroke-width="2" rx="5"/>
+  <text x="525" y="150" font-family="Arial" font-size="16" text-anchor="middle">Orchestration</text>
+  <text x="525" y="180" font-family="Arial" font-size="12" text-anchor="middle">Dagster | Mage</text>
+
+  <!-- Data Lake -->
+  <rect x="650" y="100" width="150" height="600" fill="#fff3e6" stroke="#333" stroke-width="2" rx="5"/>
+  <text x="725" y="150" font-family="Arial" font-size="16" text-anchor="middle">Data Lake</text>
+  
+  <!-- Medallion Layers -->
+  <rect x="670" y="200" width="110" height="100" fill="#cd7f32" stroke="#333" stroke-width="2" rx="5"/>
+  <text x="725" y="250" font-family="Arial" font-size="14" fill="white" text-anchor="middle">Bronze</text>
+  
+  <rect x="670" y="350" width="110" height="100" fill="#c0c0c0" stroke="#333" stroke-width="2" rx="5"/>
+  <text x="725" y="400" font-family="Arial" font-size="14" text-anchor="middle">Silver</text>
+  
+  <rect x="670" y="500" width="110" height="100" fill="#ffd700" stroke="#333" stroke-width="2" rx="5"/>
+  <text x="725" y="550" font-family="Arial" font-size="14" text-anchor="middle">Gold</text>
+
+  <!-- Data Warehouse -->
+  <rect x="850" y="100" width="150" height="600" fill="#f7f0f7" stroke="#333" stroke-width="2" rx="5"/>
+  <text x="925" y="150" font-family="Arial" font-size="16" text-anchor="middle">Data Warehouse</text>
+  
+  <!-- Data Marts -->
+  <rect x="870" y="200" width="110" height="80" fill="#ffffff" stroke="#333" stroke-width="2" rx="5"/>
+  <text x="925" y="245" font-family="Arial" font-size="12" text-anchor="middle">Finance Mart</text>
+  
+  <rect x="870" y="300" width="110" height="80" fill="#ffffff" stroke="#333" stroke-width="2" rx="5"/>
+  <text x="925" y="345" font-family="Arial" font-size="12" text-anchor="middle">Marketing Mart</text>
+  
+  <rect x="870" y="400" width="110" height="80" fill="#ffffff" stroke="#333" stroke-width="2" rx="5"/>
+  <text x="925" y="445" font-family="Arial" font-size="12" text-anchor="middle">Operations Mart</text>
+
+  <!-- Visualization -->
+  <rect x="1050" y="100" width="150" height="600" fill="#e6ffe6" stroke="#333" stroke-width="2" rx="5"/>
+  <text x="1125" y="150" font-family="Arial" font-size="16" text-anchor="middle">Visualization</text>
+  <text x="1125" y="180" font-family="Arial" font-size="12" text-anchor="middle">Preset | Superset</text>
+
+  <!-- Data Flow Arrows -->
+  <defs>
+    <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#666"/>
+    </marker>
+  </defs>
+
+  <!-- Flow Lines -->
+  <line x1="200" y1="400" x2="250" y2="400" stroke="#666" stroke-width="2" marker-end="url(#arrowhead)"/>
+  <line x1="400" y1="400" x2="450" y2="400" stroke="#666" stroke-width="2" marker-end="url(#arrowhead)"/>
+  <line x1="600" y1="400" x2="650" y2="400" stroke="#666" stroke-width="2" marker-end="url(#arrowhead)"/>
+  <line x1="800" y1="400" x2="850" y2="400" stroke="#666" stroke-width="2" marker-end="url(#arrowhead)"/>
+  <line x1="1000" y1="400" x2="1050" y2="400" stroke="#666" stroke-width="2" marker-end="url(#arrowhead)"/>
+</svg>

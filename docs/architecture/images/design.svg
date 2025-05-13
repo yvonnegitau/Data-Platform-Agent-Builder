@@ -1,0 +1,112 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="1000px" height="900px" viewBox="0 0 1000 900" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background -->
+  <rect x="0" y="0" width="1000" height="900" fill="#ffffff"/>
+  
+  <!-- Title -->
+  <text x="500" y="50" font-family="Arial" font-size="28" text-anchor="middle" font-weight="bold">Data Platform Agent Builder</text>
+  <text x="500" y="80" font-family="Arial" font-size="18" text-anchor="middle" font-style="italic">Self-Service Data Pipeline Solution</text>
+  
+  <!-- Layers Background -->
+  <rect x="150" y="120" width="700" height="120" fill="#f8f8f8" stroke="#ddd" stroke-width="2" rx="10"/>
+  <rect x="150" y="260" width="700" height="160" fill="#f0f7f0" stroke="#ddd" stroke-width="2" rx="10"/>
+  <rect x="150" y="440" width="700" height="160" fill="#fff3e6" stroke="#ddd" stroke-width="2" rx="10"/>
+  <rect x="150" y="620" width="700" height="160" fill="#e6f3ff" stroke="#ddd" stroke-width="2" rx="10"/>
+  
+  <!-- Layer Titles -->
+  <text x="180" y="145" font-family="Arial" font-size="16" fill="#666">User Layer</text>
+  <text x="180" y="285" font-family="Arial" font-size="16" fill="#666">Agent Interface Layer</text>
+  <text x="180" y="465" font-family="Arial" font-size="16" fill="#666">Pipeline Layer</text>
+  <text x="180" y="645" font-family="Arial" font-size="16" fill="#666">Data Platform Core</text>
+  
+  <!-- Components -->
+  <!-- User Layer -->
+  <rect x="350" y="160" width="300" height="60" fill="#ffffff" stroke="#333" stroke-width="2" rx="5" filter="drop-shadow(2px 2px 2px rgba(0,0,0,0.1))"/>
+  <text x="500" y="195" font-family="Arial" font-size="16" text-anchor="middle">Business Users</text>
+  
+  <!-- Agent Interface Layer -->
+  <rect x="200" y="320" width="180" height="80" fill="#ffffff" stroke="#333" stroke-width="2" rx="5" filter="drop-shadow(2px 2px 2px rgba(0,0,0,0.1))"/>
+  <text x="290" y="365" font-family="Arial" font-size="16" text-anchor="middle">Agent Interface</text>
+  
+  <rect x="410" y="320" width="180" height="80" fill="#ffffff" stroke="#333" stroke-width="2" rx="5" filter="drop-shadow(2px 2px 2px rgba(0,0,0,0.1))"/>
+  <text x="500" y="365" font-family="Arial" font-size="16" text-anchor="middle">Agent Builder</text>
+  
+  <rect x="620" y="320" width="180" height="80" fill="#ffffff" stroke="#333" stroke-width="2" rx="5" filter="drop-shadow(2px 2px 2px rgba(0,0,0,0.1))"/>
+  <text x="710" y="365" font-family="Arial" font-size="16" text-anchor="middle">Knowledge Repository</text>
+  
+  <!-- MCP Interface -->
+  <rect x="200" y="320" width="180" height="80" fill="#ffffff" stroke="#333" stroke-width="2" rx="5" filter="drop-shadow(2px 2px 2px rgba(0,0,0,0.1))"/>
+  <text x="290" y="350" font-family="Arial" font-size="16" text-anchor="middle">MCP Interface</text>
+  <text x="290" y="370" font-family="Arial" font-size="12" text-anchor="middle">Model/Code/Prompt</text>
+  
+  <!-- Pipeline Layer -->
+  <rect x="200" y="500" width="180" height="80" fill="#ffffff" stroke="#333" stroke-width="2" rx="5" filter="drop-shadow(2px 2px 2px rgba(0,0,0,0.1))"/>
+  <text x="290" y="545" font-family="Arial" font-size="16" text-anchor="middle">Pipeline Generator</text>
+  
+  <rect x="410" y="500" width="180" height="80" fill="#ffffff" stroke="#333" stroke-width="2" rx="5" filter="drop-shadow(2px 2px 2px rgba(0,0,0,0.1))"/>
+  <text x="500" y="545" font-family="Arial" font-size="16" text-anchor="middle">Pipeline Templates</text>
+  
+  <rect x="620" y="500" width="180" height="80" fill="#ffffff" stroke="#333" stroke-width="2" rx="5" filter="drop-shadow(2px 2px 2px rgba(0,0,0,0.1))"/>
+  <text x="710" y="545" font-family="Arial" font-size="16" text-anchor="middle">Pipeline Catalog</text>
+  
+  <!-- Data Platform Core -->
+  <rect x="200" y="680" width="150" height="80" fill="#ffffff" stroke="#333" stroke-width="2" rx="5" filter="drop-shadow(2px 2px 2px rgba(0,0,0,0.1))"/>
+  <text x="275" y="725" font-family="Arial" font-size="16" text-anchor="middle">ETL Engine</text>
+  
+  <rect x="370" y="680" width="150" height="80" fill="#ffffff" stroke="#333" stroke-width="2" rx="5" filter="drop-shadow(2px 2px 2px rgba(0,0,0,0.1))"/>
+  <text x="445" y="725" font-family="Arial" font-size="16" text-anchor="middle">Data Quality</text>
+  
+  <rect x="540" y="680" width="150" height="80" fill="#ffffff" stroke="#333" stroke-width="2" rx="5" filter="drop-shadow(2px 2px 2px rgba(0,0,0,0.1))"/>
+  <text x="615" y="725" font-family="Arial" font-size="16" text-anchor="middle">Data Models</text>
+  
+  <rect x="710" y="680" width="90" height="80" fill="#ffffff" stroke="#333" stroke-width="2" rx="5" filter="drop-shadow(2px 2px 2px rgba(0,0,0,0.1))"/>
+  <text x="755" y="725" font-family="Arial" font-size="16" text-anchor="middle">Storage</text>
+  
+  <!-- Admin Panel -->
+  <rect x="880" y="440" width="100" height="160" fill="#f5f0f7" stroke="#333" stroke-width="2" rx="5" filter="drop-shadow(2px 2px 2px rgba(0,0,0,0.1))"/>
+  <text x="930" y="480" font-family="Arial" font-size="16" text-anchor="middle" font-weight="bold">Admin</text>
+  <text x="930" y="520" font-family="Arial" font-size="14" text-anchor="middle">Data</text>
+  <text x="930" y="540" font-family="Arial" font-size="14" text-anchor="middle">Team</text>
+
+  <!-- Connections with Curves -->
+  <!-- User to Agent -->
+  <path d="M500,220 C500,250 290,280 290,320" stroke="#666" stroke-width="2" fill="none" marker-end="url(#arrowhead)"/>
+  <text x="400" y="270" font-family="Arial" font-size="12" fill="#666">Choose Access Pattern</text>
+  
+  <!-- Agent Interface Flow -->
+  <path d="M380,360 L410,360" stroke="#666" stroke-width="2" fill="none" marker-end="url(#arrowhead)"/>
+  <path d="M590,360 L620,360" stroke="#666" stroke-width="2" fill="none" marker-end="url(#arrowhead)"/>
+  
+  <!-- Knowledge to Agent Interface -->
+  <path d="M710,400 C710,430 290,430 290,400" stroke="#666" stroke-width="2" stroke-dasharray="5,5" fill="none" marker-end="url(#arrowhead)"/>
+  <text x="500" y="450" font-family="Arial" font-size="12" fill="#666">Improves</text>
+  
+  <!-- Agent to Pipeline -->
+  <path d="M290,400 L290,500" stroke="#666" stroke-width="2" fill="none" marker-end="url(#arrowhead)"/>
+  
+  <!-- Pipeline Flow -->
+  <path d="M380,540 L410,540" stroke="#666" stroke-width="2" fill="none" marker-end="url(#arrowhead)"/>
+  <path d="M590,540 L620,540" stroke="#666" stroke-width="2" fill="none" marker-end="url(#arrowhead)"/>
+  
+  <!-- Pipeline to Platform -->
+  <path d="M290,580 C290,620 275,680 275,680" stroke="#666" stroke-width="2" fill="none" marker-end="url(#arrowhead)"/>
+  
+  <!-- Platform Flow -->
+  <path d="M350,720 L370,720" stroke="#666" stroke-width="2" fill="none" marker-end="url(#arrowhead)"/>
+  <path d="M520,720 L540,720" stroke="#666" stroke-width="2" fill="none" marker-end="url(#arrowhead)"/>
+  <path d="M690,720 L710,720" stroke="#666" stroke-width="2" fill="none" marker-end="url(#arrowhead)"/>
+  
+  <!-- Admin Connections -->
+  <path d="M880,480 C840,480 840,360 800,360" stroke="#666" stroke-width="2" fill="none" marker-end="url(#arrowhead)"/>
+  <text x="850" y="450" font-family="Arial" font-size="12" fill="#666">Monitors</text>
+  
+  <path d="M880,520 C840,520 840,720 800,720" stroke="#666" stroke-width="2" fill="none" marker-end="url(#arrowhead)"/>
+  <text x="850" y="600" font-family="Arial" font-size="12" fill="#666">Maintains</text>
+
+  <!-- Arrow Definitions -->
+  <defs>
+    <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#666"/>
+    </marker>
+  </defs>
+</svg>
