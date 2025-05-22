@@ -12,7 +12,7 @@ COPY infrastructure/data-platform/dagster/workspace.yaml .
 
 # Set environment variables
 ENV DAGSTER_HOME=/opt/dagster/app
-ENV PYTHONPATH=/opt/dagster/app/code:${PYTHONPATH}
+ENV PYTHONPATH=/opt/dagster/app/:${PYTHONPATH}
 
 # Setup working directory
 WORKDIR /opt/dagster/app

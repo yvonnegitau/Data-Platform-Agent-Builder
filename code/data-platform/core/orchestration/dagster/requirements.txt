@@ -1,0 +1,11 @@
+dagster
+dagit
+dagster-graphql
+dagster-postgres
+dagster-duckdb
+dagster-docker
+dlt[duckdb]
+dbt-core
+dbt-duckdb
+python-dateutil
+requests
