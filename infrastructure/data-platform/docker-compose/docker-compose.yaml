@@ -24,6 +24,7 @@ services:
     volumes: # Make docker client accessible so we can terminate containers from the webserver
       - /var/run/docker.sock:/var/run/docker.sock
       - /tmp/io_manager_storage:/tmp/io_manager_storage
+      - /mnt/c/F1Data:/data
     networks:
       - data_platform
 
@@ -37,6 +38,9 @@ services:
       - run
     restart: on-failure
     container_name: dagster_daemon
+    depends_on:
+      - dagster-code
+      - postgres
     environment:
       DAGSTER_POSTGRES_USER: dagster
       DAGSTER_POSTGRES_PASSWORD: dagsterpass
@@ -44,6 +48,7 @@ services:
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - /tmp/io_manager_storage:/tmp/io_manager_storage
+      - /mnt/c/F1Data:/data
     networks:
       - data_platform
 
@@ -61,11 +66,34 @@ services:
       DAGSTER_POSTGRES_PASSWORD: dagsterpass
       DAGSTER_POSTGRES_DB: dagster
       DAGSTER_CURRENT_IMAGE: dagster_code_image
+      
+    volumes:
+      - /mnt/c/F1Data:/data
     networks:
       - data_platform
+    
+
+  # Optional: DuckDB CLI container for database access
+  duckdb-cli:
+    image: python:3.10-slim
+    container_name: duckdb_access
+    command: 
+      - /bin/bash
+      - -c
+      - |
+        pip install duckdb pandas &&
+        echo "DuckDB ready. Use: docker exec -it duckdb_access python3" &&
+        tail -f /dev/null
+    volumes:
+      - /home/ace/Projects/Data-Platform-Agent-Builder/data:/data
+    networks:
+      - data_platform
+    profiles: ["tools"]
+    restart: unless-stopped
 
   postgres:
     image: postgres:15
+    container_name: postgres
     environment:
       POSTGRES_USER: dagster
       POSTGRES_PASSWORD: dagsterpass
@@ -79,10 +107,14 @@ services:
 
 volumes:
   postgres_data:
+    driver: local
   dagster_data:
+    driver: local
   dbt_data:
-  duckdb_data:
+    driver: local
+  
 
 networks:
   data_platform:
+    name: data_platform
     driver: bridge

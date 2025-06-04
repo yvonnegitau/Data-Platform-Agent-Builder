@@ -9,3 +9,4 @@ dbt-core
 dbt-duckdb
 python-dateutil
 requests
+tenacity

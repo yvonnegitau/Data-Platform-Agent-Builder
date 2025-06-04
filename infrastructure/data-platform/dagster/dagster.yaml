@@ -5,6 +5,12 @@ scheduler:
 run_coordinator:
   module: dagster.core.run_coordinator
   class: QueuedRunCoordinator
+  config:
+    max_concurrent_runs: 10  # Limit concurrent runs
+    tag_concurrency_limits:
+      - key: "dagster/backfill"
+        value: "true"
+        limit: 2  # Only 2 backfill runs at once
 
 run_launcher:
   module: dagster_docker
@@ -14,11 +20,15 @@ run_launcher:
       - DAGSTER_POSTGRES_USER
       - DAGSTER_POSTGRES_PASSWORD
       - DAGSTER_POSTGRES_DB
-    network: openstacknetwork
+    network: data_platform  # Docker Compose prefixes with directory name
     container_kwargs:
       volumes:
         - /var/run/docker.sock:/var/run/docker.sock
         - /tmp/io_manager_storage:/tmp/io_manager_storage
+        - /mnt/c/F1Data:/data # Add DuckDB volume access
+      auto_remove: true
+      
+    image: dagster_code_image # Use the image from dagster_code service
 
 run_storage:
   module: dagster_postgres.run_storage

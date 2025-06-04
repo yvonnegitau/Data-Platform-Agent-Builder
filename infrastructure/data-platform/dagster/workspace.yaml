@@ -3,4 +3,4 @@ load_from:
   - grpc_server:
       host: dagster_code
       port: 4000
-      location_name: "dagster_code"
+      location_name: "f1_pipeline"

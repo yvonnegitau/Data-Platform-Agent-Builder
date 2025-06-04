@@ -10,16 +10,23 @@ from dagster import (
 all_assets = load_assets_from_modules([f1_assets])
 
 f1_bronze_job = define_asset_job(
-    "f1_bronze_incremental_job",
-    selection=AssetSelection.groups("f1_bronze_incremental"),
+    "f1_bronze_reference_job",
+    selection=AssetSelection.groups("f1_bronze_reference"),
     description="Job to run the F1 bronze pipeline",
 )
 
 f1_reference_job = define_asset_job(
-    "f1_bronze_reference_job",
-    selection=AssetSelection.groups("f1_bronze_reference"),
+    "f1_bronze_comprehensive_job",
+    selection=AssetSelection.groups("f1_bronze_incremental"),
     description="Extract F1 reference data",
 )
+
+f1_static_job = define_asset_job(
+    "f1_bronze_static_job",
+    selection=AssetSelection.groups("f1_bronze_static"),
+    description="Extract F1 static data",
+)
+
 
 f1_full_job = define_asset_job(
     "f1_full_job",
@@ -29,5 +36,5 @@ f1_full_job = define_asset_job(
 
 defs = Definitions(
     assets=all_assets,
-    jobs=[f1_bronze_job, f1_reference_job, f1_full_job],
+    jobs=[f1_bronze_job, f1_reference_job, f1_full_job, f1_static_job],
 )

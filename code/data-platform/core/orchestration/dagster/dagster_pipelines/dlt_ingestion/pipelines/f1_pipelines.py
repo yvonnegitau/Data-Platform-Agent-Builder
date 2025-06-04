@@ -30,7 +30,4 @@ def run_f1_bronze_pipeline(
 
     info = pipeline.run(f1_bronze_data(simulation_date=simulation_date))
 
-    logger.info(f"Pipeline completed. Loaded {info.load_package.count} resources.")
-    logger.info(f"Resources loaded: {info.load_package.resource_counts}")
-
     return info

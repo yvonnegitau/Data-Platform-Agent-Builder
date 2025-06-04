@@ -49,9 +49,7 @@ def f1_bronze_data(simulation_date: Optional[datetime] = None):
 def extract_driver_standings(standings_data: Dict[str, Any]) -> List[Dict[str, Any]]:
     all_standings = []
 
-    for standings_list in standings_data.get("driverStandings", {}):
-        if "DriverStandings" not in standings_list:
-            continue
+    for standings_list in standings_data:
 
         season = standings_list.get("season")
         round_num = standings_list.get("round")
@@ -70,9 +68,7 @@ def extract_constructor_standings(
 ) -> List[Dict[str, Any]]:
     all_standings = []
 
-    for standings_list in standings_data.get("ConstructorStandings", {}):
-        if "ConstructorStandings" not in standings_list:
-            continue
+    for standings_list in standings_data:
 
         season = standings_list.get("season")
         round_num = standings_list.get("round")
