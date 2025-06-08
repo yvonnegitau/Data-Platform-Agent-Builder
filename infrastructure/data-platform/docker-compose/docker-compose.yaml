@@ -73,23 +73,7 @@ services:
       - data_platform
     
 
-  # Optional: DuckDB CLI container for database access
-  duckdb-cli:
-    image: python:3.10-slim
-    container_name: duckdb_access
-    command: 
-      - /bin/bash
-      - -c
-      - |
-        pip install duckdb pandas &&
-        echo "DuckDB ready. Use: docker exec -it duckdb_access python3" &&
-        tail -f /dev/null
-    volumes:
-      - /home/ace/Projects/Data-Platform-Agent-Builder/data:/data
-    networks:
-      - data_platform
-    profiles: ["tools"]
-    restart: unless-stopped
+  
 
   postgres:
     image: postgres:15
