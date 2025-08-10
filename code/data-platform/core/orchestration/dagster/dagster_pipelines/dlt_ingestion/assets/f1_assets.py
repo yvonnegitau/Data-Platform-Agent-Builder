@@ -401,7 +401,7 @@ def f1_circuits(context: AssetExecutionContext) -> None:
     group_name="f1_bronze_race_details",
     partitions_def=yearly_partitions,
     backfill_policy=multi_run_backfill,
-    deps=["f1_races"],  # Depends
+    deps=["f1_races"],
     ins={"race_metadata": AssetIn("f1_races")},
 )
 def f1_laps(
@@ -416,27 +416,48 @@ def f1_laps(
         f"Extracting comprehensive F1 data for: {simulation_date.strftime('%Y-%m-%d')}"
     )
     context.log.info(f"Received race metadata: {race_metadata}")
-    round = 0
-    year = datetime.now().year
+
+    # Collect ALL rounds and determine the year
+    rounds_to_process = []
+    year = simulation_date.year  # Default to simulation date year
+
     for item in race_metadata:
-        # get the race rounds in the current partition
         if "round" not in item or "season" not in item:
             context.log.warning(f"Skipping item without 'round' or 'season': {item}")
-        else:
-            round = item["round"]
-            year = item["season"]
-            context.log.info(f"Processing round: {round} for season: {item['season']}")
-    if round == 0:
-        context.log.warning(
-            "No valid rounds found in the current partition, skipping laps extraction."
-        )
-    else:
-        context.log.info(
-            f"Extracting laps for round: {round} in season: {item['season']}"
-        )
+            continue
 
-    source = f1_api_source(years=[year], rounds=[round])
+        round_num = int(item["round"])
+        season_year = int(item["season"])
+
+        rounds_to_process.append(round_num)
+        year = season_year  # Update year (should be consistent across all items)
+
+        context.log.info(f"Added round {round_num} for season {season_year}")
+
+    if not rounds_to_process:
+        context.log.warning(
+            "No valid rounds found in race metadata, skipping laps extraction."
+        )
+        return
+
+    # Remove duplicates and sort
+    rounds_to_process = sorted(list(set(rounds_to_process)))
+
+    context.log.info(
+        f"Extracting laps for {len(rounds_to_process)} rounds: {rounds_to_process} in season {year}"
+    )
+
+    # Process all rounds at once
+    source = f1_api_source(years=[year], rounds=rounds_to_process)
     bronze_pipeline.run(source.resources["laps"])
+
+    context.add_output_metadata(
+        {
+            "rounds_processed": len(rounds_to_process),
+            "rounds_list": str(rounds_to_process),
+            "season": year,
+        }
+    )
 
     return None
 

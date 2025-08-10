@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
 def f1_api_source(
     base_url: str = "https://api.jolpi.ca/ergast/f1",
     years: Optional[Union[List[int], range]] = None,
-    rounds: Optional[int] = None,
+    rounds: Optional[List[int]] = None,
 ) -> List[DagsterDltResource]:
     """
     Source for the F1 API.
@@ -341,13 +341,22 @@ def f1_api_source(
         primary_key=["season", "round", "number"],
         write_disposition="merge",
     )
-    def laps(year: Optional[int] = None):
+    def laps(year: Optional[int] = None, rounds_override: Optional[List[int]] = None):
         """
         Resource for Laps.
         """
         years_to_process = [year] if year is not None else years
         logger = dagster.get_dagster_logger()
         logger.info(f"Processing F1 laps for years: {years_to_process}")
+        logger.info(f"Rounds to process: {rounds}")
+        rounds_to_use = rounds_override if rounds_override is not None else rounds
+        # If still no rounds specified, default to getting all rounds
+        if rounds_to_use is None:
+            logger.info(
+                "No rounds specified, will fetch all available rounds for each year"
+            )
+            rounds_to_use = []  # Will be populated per year
+        logger.info(f"Processing F1 laps for rounds: {rounds_to_use}")
         for year in years_to_process:
             logger.info(f"Processing laps for {year}")
 
@@ -361,12 +370,13 @@ def f1_api_source(
                 ),
                 data_selector="MRData.RaceTable.Races",
             )
-            for round in rounds:
+            for round in rounds_to_use:
                 # Make the request with pagination
+                logger.info(f"Processing laps for year {year}, round {round}")
                 for page in client.paginate(
                     f"{year}/{round}/laps.json",
                 ):
-                    logger.info(f"Extracted {len(page)} laps for year {year}")
+
                     if len(page) == 0:
                         logger.warning(f"No laps data found for year {year}")
                         continue

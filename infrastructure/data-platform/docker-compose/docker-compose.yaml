@@ -1,7 +1,7 @@
 version: '3.8'
 
 services:
-  # Daster Webserver UI
+  # Dagster Webserver UI
   dagster-webserver:
     build: 
       context: ../../..
@@ -69,6 +69,8 @@ services:
       
     volumes:
       - /mnt/c/F1Data:/data
+      - io_manager_storage:/opt/dagster/app/storage
+
     networks:
       - data_platform
     
@@ -120,6 +122,8 @@ volumes:
   dagster_data:
     driver: local
   dbt_data:
+    driver: local
+  io_manager_storage:
     driver: local
   
 

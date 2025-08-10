@@ -24,7 +24,7 @@ run_launcher:
     container_kwargs:
       volumes:
         - /var/run/docker.sock:/var/run/docker.sock
-        - /tmp/io_manager_storage:/tmp/io_manager_storage
+        - io_manager_storage:/opt/dagster/app/storage
         - /mnt/c/F1Data:/data # Add DuckDB volume access
       auto_remove: true
       
