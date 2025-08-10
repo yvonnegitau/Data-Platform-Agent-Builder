@@ -18,6 +18,7 @@ WORKDIR /opt/dagster/app
 COPY code/data-platform/core/orchestration/dagster/dagster_pipelines/ /opt/dagster/app
 
 
+
 # Run dagster gRPC server on port 4000
 
 EXPOSE 4000

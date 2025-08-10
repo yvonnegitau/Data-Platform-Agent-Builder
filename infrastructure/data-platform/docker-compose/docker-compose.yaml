@@ -72,7 +72,26 @@ services:
     networks:
       - data_platform
     
-
+  dbt:
+    build: 
+      context: ../../..
+      dockerfile: code/data-platform/core/processing/dbt/data_platform_f1/Dockerfile
+    container_name: dbt
+    image: dbt_image
+    volumes:
+      - ../../../code/data-platform/core/processing/dbt/data_platform_f1:/usr/app
+      - ../../../code/data-platform/core/processing/dbt/data_platform_f1/profiles.yml:/root/.dbt/profiles.yml
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      - POSTGRES_HOST=postgres
+      - POSTGRES_USER=dagster
+      - POSTGRES_PASSWORD=dagsterpass
+      - POSTGRES_DB=dagster
+    command: sleep infinity
+    networks:
+      - data_platform
   
 
   postgres:
@@ -86,8 +105,14 @@ services:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+      - ./postgres/init:/docker-entrypoint-initdb.d
     networks:
       - data_platform
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U dagster -d dagster"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
 volumes:
   postgres_data:

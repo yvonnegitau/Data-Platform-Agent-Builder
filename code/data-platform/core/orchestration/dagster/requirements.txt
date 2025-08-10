@@ -5,8 +5,10 @@ dagster-postgres
 dagster-duckdb
 dagster-docker
 dlt[duckdb]
+dlt[postgres]
 dbt-core
 dbt-duckdb
 python-dateutil
 requests
 tenacity
+dagster-embedded-elt
