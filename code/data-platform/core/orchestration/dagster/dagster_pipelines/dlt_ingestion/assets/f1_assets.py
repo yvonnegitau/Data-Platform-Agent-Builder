@@ -158,7 +158,7 @@ def f1_races(
 
         race_metadata = get_race_metadata_from_source(source, simulation_date.year)
 
-        context.log.info(f"Returning race metadata: {race_metadata}")
+        # context.log.info(f"Returning race metadata: {race_metadata}")
 
         # Return the properly typed race metadata
         return race_metadata

@@ -322,7 +322,7 @@ def f1_api_source(
                 logger.info(
                     f"Extracted {len(page)} constructor standings for year {year}"
                 )
-                logger.info(f"Constructor standings data: {page}")
+
                 if len(page) == 0:
                     logger.warning(
                         f"No constructor standings data found for year {year}"
