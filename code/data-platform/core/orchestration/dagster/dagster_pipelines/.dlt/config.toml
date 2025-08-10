@@ -1,0 +1,14 @@
+[sources]
+
+[destinations.duckdb]
+# Single database with schema separation for medallion architecture
+credentials = "duckdb:////data/medallion/f1_data.duckdb"
+
+[load]
+delete_completed_jobs = true
+
+[runtime]
+request_max_attempts = 3  # Stop after 10 retry attempts instead of 5
+request_backoff_factor = 0.5  # Multiplier applied to the exponential delays. Default is 1
+request_timeout = 30  # Timeout in seconds
+request_max_retry_delay = 30  # Cap exponential delay to 30 seconds

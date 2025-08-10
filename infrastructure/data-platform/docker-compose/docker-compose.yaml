@@ -1,0 +1,133 @@
+version: '3.8'
+
+services:
+  # Dagster Webserver UI
+  dagster-webserver:
+    build: 
+      context: ../../..
+      dockerfile: infrastructure/data-platform/dagster/Dockerfile
+    ports:
+      - "3001:3001"  # Add this port mapping
+    entrypoint:
+      - dagster-webserver
+      - -h
+      - "0.0.0.0"
+      - -p
+      - "3001"
+      - -w
+      - workspace.yaml
+    container_name: dagster_webserver
+    environment:
+      DAGSTER_POSTGRES_USER: dagster
+      DAGSTER_POSTGRES_PASSWORD: dagsterpass
+      DAGSTER_POSTGRES_DB: dagster
+    volumes: # Make docker client accessible so we can terminate containers from the webserver
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /tmp/io_manager_storage:/tmp/io_manager_storage
+      - /mnt/c/F1Data:/data
+    networks:
+      - data_platform
+
+  # Dagster Daemon
+  dagster-daemon:
+    build: 
+      context: ../../..
+      dockerfile: infrastructure/data-platform/dagster/Dockerfile
+    entrypoint:
+      - dagster-daemon
+      - run
+    restart: on-failure
+    container_name: dagster_daemon
+    depends_on:
+      - dagster-code
+      - postgres
+    environment:
+      DAGSTER_POSTGRES_USER: dagster
+      DAGSTER_POSTGRES_PASSWORD: dagsterpass
+      DAGSTER_POSTGRES_DB: dagster
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /tmp/io_manager_storage:/tmp/io_manager_storage
+      - /mnt/c/F1Data:/data
+    networks:
+      - data_platform
+
+  # Dagster Code 
+  dagster-code:
+    build: 
+      context: ../../..
+      dockerfile: code/data-platform/core/orchestration/dagster/Dockerfile
+    
+    container_name: dagster_code
+    image: dagster_code_image
+    restart: always
+    environment:
+      DAGSTER_POSTGRES_USER: dagster
+      DAGSTER_POSTGRES_PASSWORD: dagsterpass
+      DAGSTER_POSTGRES_DB: dagster
+      DAGSTER_CURRENT_IMAGE: dagster_code_image
+      
+    volumes:
+      - /mnt/c/F1Data:/data
+      - io_manager_storage:/opt/dagster/app/storage
+
+    networks:
+      - data_platform
+    
+  dbt:
+    build: 
+      context: ../../..
+      dockerfile: code/data-platform/core/processing/dbt/data_platform_f1/Dockerfile
+    container_name: dbt
+    image: dbt_image
+    volumes:
+      - ../../../code/data-platform/core/processing/dbt/data_platform_f1:/usr/app
+      - ../../../code/data-platform/core/processing/dbt/data_platform_f1/profiles.yml:/root/.dbt/profiles.yml
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      - POSTGRES_HOST=postgres
+      - POSTGRES_USER=dagster
+      - POSTGRES_PASSWORD=dagsterpass
+      - POSTGRES_DB=dagster
+    command: sleep infinity
+    networks:
+      - data_platform
+  
+
+  postgres:
+    image: postgres:15
+    container_name: postgres
+    environment:
+      POSTGRES_USER: dagster
+      POSTGRES_PASSWORD: dagsterpass
+      POSTGRES_DB: dagster
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./postgres/init:/docker-entrypoint-initdb.d
+    networks:
+      - data_platform
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U dagster -d dagster"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres_data:
+    driver: local
+  dagster_data:
+    driver: local
+  dbt_data:
+    driver: local
+  io_manager_storage:
+    driver: local
+  
+
+networks:
+  data_platform:
+    name: data_platform
+    driver: bridge
