@@ -237,41 +237,19 @@ def f1_results(context: AssetExecutionContext, config: F1BronzeConfig) -> None:
     group_name="f1_bronze_yearly",
     description="F1 drivers data from Ergast API",
     partitions_def=yearly_partitions,
-    backfill_policy=single_run_backfill,
+    backfill_policy=multi_run_backfill,
 )
 def f1_drivers(context: AssetExecutionContext, config: F1BronzeConfig) -> None:
     """Extract F1 drivers data."""
     # Get partition keys (handles both individual and range runs)
-    partition_keys = []
-    if hasattr(context, "partition_key_range") and context.partition_key_range:
-        # Extract start and end years from range
-        start_year = context.partition_key_range.start
-        end_year = context.partition_key_range.end
-        context.log.info(f"Processing partition range: {start_year} to {end_year}")
-
-        # Generate all years in the range
-        partition_keys = context.partition_keys
-    elif hasattr(context, "partition_key") and context.partition_key:
-        partition_keys = [context.partition_key]
-        context.log.info(f"Processing single partition: {context.partition_key}")
-
-    context.log.info(f"Will process these partitions: {partition_keys}")
-
-    years = []
-
-    # Process each partition
-    for key in partition_keys:
-        # Parse the key to get simulation date
-        simulation_date = datetime.strptime(key, "%Y-%m-%d") if key else datetime.now()
-
-        context.log.info(
-            f"Extracting drivers for {key} (date: {simulation_date.strftime('%Y-%m-%d')})"
-        )
-        years.append(simulation_date.year)
+    simulation_date = get_simulation_date_from_partition(context, config)
 
     # write_disposition = "replace" if config.full_refresh else "merge"
     # Extract Data
-    source = f1_api_source(years=years)
+    context.log.info(
+        f"Extracting drivers for years: {simulation_date.strftime('%Y-%m-%d')}"
+    )
+    source = f1_api_source(years=[simulation_date.year])
 
     bronze_pipeline.run(source.resources["drivers"])
 
@@ -283,37 +261,18 @@ def f1_drivers(context: AssetExecutionContext, config: F1BronzeConfig) -> None:
     group_name="f1_bronze_yearly",
     description="F1 constructors data from Ergast API",
     partitions_def=yearly_partitions,
-    backfill_policy=single_run_backfill,  # Changed to match f1_drivers
+    backfill_policy=multi_run_backfill,  # Changed to match f1_drivers
 )
 def f1_constructors(context: AssetExecutionContext, config: F1BronzeConfig) -> None:
     """Extract F1 constructors data."""
     # Get partition keys (handles both individual and range runs)
-    partition_keys = []
-    if hasattr(context, "partition_key_range") and context.partition_key_range:
-        # Extract start and end years from range
-        start_year = context.partition_key_range.start
-        end_year = context.partition_key_range.end
-        context.log.info(f"Processing partition range: {start_year} to {end_year}")
+    simulation_date = get_simulation_date_from_partition(context, config)
 
-        # Generate all years in the range
-        partition_keys = context.partition_keys
-    elif hasattr(context, "partition_key") and context.partition_key:
-        partition_keys = [context.partition_key]
-        context.log.info(f"Processing single partition: {context.partition_key}")
-
-    context.log.info(f"Will process these partitions: {partition_keys}")
-
-    years = []
-
-    # Process each partition
-    for key in partition_keys:
-        # Parse the key to get simulation date
-        simulation_date = datetime.strptime(key, "%Y-%m-%d") if key else datetime.now()
-
-        years.append(simulation_date.year)
-
-    context.log.info(f"Extracting constructors for years: {years}")
-    bronze_pipeline.run(f1_api_source(years=years).resources["constructors"])
+    context.log.info(
+        f"Extracting constructors for years: {simulation_date.strftime('%Y-%m-%d')}"
+    )
+    source = f1_api_source(years=[simulation_date.year])
+    bronze_pipeline.run(source.resources["constructors"])
 
     return None
 
@@ -376,6 +335,23 @@ def f1_seasons(context: AssetExecutionContext) -> None:
     source = f1_api_source()
 
     bronze_pipeline.run(source.resources["seasons"])
+
+
+@asset(
+    compute_kind="dlt",
+    group_name="f1_bronze_static",
+    description="F1 status data from Ergast API",
+    partitions_def=reference_partitions,
+    backfill_policy=single_run_backfill,
+)
+def f1_status_drivers(context: AssetExecutionContext) -> None:
+    """Extract F1 drivers reference data."""
+
+    context.log.info("Extracting F1 Status data")
+
+    source = f1_api_source()
+
+    bronze_pipeline.run(source.resources["status"])
 
 
 @asset(

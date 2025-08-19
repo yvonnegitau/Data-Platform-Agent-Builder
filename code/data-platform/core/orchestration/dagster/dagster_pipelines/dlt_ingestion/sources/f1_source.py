@@ -53,7 +53,7 @@ def f1_api_source(
         ):
             logger.info(f"Extracted {len(page)} seasons")
             for season in page:
-
+                season["date_extracted_at"] = datetime.now().isoformat()
                 yield season
 
     @dlt.resource(
@@ -86,7 +86,41 @@ def f1_api_source(
             logger.info(f"Extracted {len(page)} circuits")
 
             for circuit in page:
+                circuit["date_extracted_at"] = datetime.now().isoformat()
                 yield circuit
+
+    @dlt.resource(
+        name="status",
+        primary_key="statusId",
+        write_disposition="merge",
+    )
+    def status():
+        """
+        Resource for F1 status.
+        """
+        logger = dagster.get_dagster_logger()
+        logger.info("Processing F1 status")
+
+        # Create a REST client with the correct paginator
+        client = RESTClient(
+            base_url=base_url,
+            paginator=OffsetPaginator(
+                limit=100,
+                offset=0,
+                total_path="MRData.total",
+            ),
+            data_selector="MRData.StatusTable.Status",
+        )
+
+        # Make the request with pagination
+        for page in client.paginate(
+            "/status.json",
+        ):
+            logger.info(f"Extracted {len(page)} status entries")
+
+            for status in page:
+                status["date_extracted_at"] = datetime.now().isoformat()
+                yield status
 
     @dlt.resource(
         name="drivers",
@@ -123,7 +157,7 @@ def f1_api_source(
 
                 for driver in page:
                     driver["year"] = year
-                    driver["data_extracted_at"] = datetime.now().isoformat()
+                    driver["date_extracted_at"] = datetime.now().isoformat()
                     yield driver
             time.sleep(30)  # Respect API rate limits
 
@@ -161,7 +195,7 @@ def f1_api_source(
 
                 for constructor in page:
                     constructor["year"] = year
-                    constructor["data_extracted_at"] = datetime.now().isoformat()
+                    constructor["date_extracted_at"] = datetime.now().isoformat()
                     yield constructor
             time.sleep(30)  # Respect API rate limits
 
@@ -196,13 +230,18 @@ def f1_api_source(
                 logger.info(f"Extracted {len(page)} pages for year {year}")
 
                 for race in page:
-                    race["extracted_at"] = datetime.now().isoformat()
+                    race["date_extracted_at"] = datetime.now().isoformat()
                     yield race
             time.sleep(30)
 
     @dlt.resource(
         name="results",
-        primary_key=["season", "round", "number"],
+        primary_key=[
+            "season",
+            "round",
+            "number",
+            "constructor__constructor_id",
+        ],
         write_disposition="merge",
     )
     def results(year: Optional[int] = None):
@@ -241,7 +280,7 @@ def f1_api_source(
                         result["season"] = page[0]["season"]
                         result["round"] = page[0]["round"]
 
-                        result["data_extracted_at"] = datetime.now().isoformat()
+                        result["date_extracted_at"] = datetime.now().isoformat()
                         yield result
                 time.sleep(30)
 
@@ -283,7 +322,7 @@ def f1_api_source(
                     for standing in page[0]["DriverStandings"]:
                         standing["season"] = page[0]["season"]
                         standing["round"] = page[0]["round"]
-                        standing["data_extracted_at"] = datetime.now().isoformat()
+                        standing["date_extracted_at"] = datetime.now().isoformat()
                         yield standing
             time.sleep(30)  # Respect API rate limits
 
@@ -332,7 +371,7 @@ def f1_api_source(
                     for standing in page[0]["ConstructorStandings"]:
                         standing["season"] = page[0]["season"]
                         standing["round"] = page[0]["round"]
-                        standing["data_extracted_at"] = datetime.now().isoformat()
+                        standing["date_extracted_at"] = datetime.now().isoformat()
                         yield standing
             time.sleep(30)
 
@@ -384,7 +423,7 @@ def f1_api_source(
                         for lap in page[0]["Laps"]:
                             lap["season"] = page[0]["season"]
                             lap["round"] = page[0]["round"]
-                            lap["data_extracted_at"] = datetime.now().isoformat()
+                            lap["date_extracted_at"] = datetime.now().isoformat()
                             yield lap
                 time.sleep(30)  # Respect API rate limits
 
@@ -425,7 +464,7 @@ def f1_api_source(
                     for qualifying in page[0]["QualifyingResults"]:
                         qualifying["season"] = page[0]["season"]
                         qualifying["round"] = page[0]["round"]
-                        qualifying["data_extracted_at"] = datetime.now().isoformat()
+                        qualifying["date_extracted_at"] = datetime.now().isoformat()
                         yield qualifying
             time.sleep(30)  # Respect API rate limits
 
@@ -440,4 +479,5 @@ def f1_api_source(
         constructor_standings,
         laps,
         qualifying,
+        status,
     )

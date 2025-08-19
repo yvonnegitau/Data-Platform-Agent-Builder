@@ -18,6 +18,8 @@ seed-paths: ["seeds"]
 macro-paths: ["macros"]
 snapshot-paths: ["snapshots"]
 
+
+
 clean-targets:         # directories to be removed by `dbt clean`
   - "target"
   - "dbt_packages"
@@ -31,6 +33,15 @@ clean-targets:         # directories to be removed by `dbt clean`
 # files using the `{{ config(...) }}` macro.
 models:
   data_platform_f1:
-    # Config indicated by + and applies to all files under models/example/
-    example:
-      +materialized: view
+    staging:
+      +materialized: table
+      +schema: staging
+      +tags: ["bronze","staging"]
+      +pre-hook: "{{ dbt_utils.log_info('Running pre-hook for staging models') }}"
+      +post-hook: "{{ dbt_utils.log_info('Running post-hook for staging models') }}"
+      +meta:
+        owner: "data_team"
+        description: "Staging models for F1 data"
+      # +contract:
+      #   enforced: true
+      

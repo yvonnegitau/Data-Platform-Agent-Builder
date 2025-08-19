@@ -1,0 +1,13 @@
+version: 2
+
+sources:
+  - name: f1_bronze
+    description: "Raw F1 data from DLT ingestion"
+    schema: f1_bronze
+    tables:
+      - name: races
+      - name: drivers  
+      - name: circuits
+      - name: constructors
+      - name: results
+      - name: status

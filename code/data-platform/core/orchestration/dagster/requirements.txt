@@ -6,9 +6,11 @@ dagster-duckdb
 dagster-docker
 dlt[duckdb]
 dlt[postgres]
-dbt-core
+dbt-core==1.9.0
 dbt-duckdb
 python-dateutil
 requests
 tenacity
 dagster-embedded-elt
+dagster-dbt
+dbt-postgres==1.9.0

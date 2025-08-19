@@ -3,3 +3,5 @@ dagster-graphql
 dagster-webserver
 dagster-postgres
 dagster-docker
+dbt-core==1.9.0
+dbt-postgres==1.9.0

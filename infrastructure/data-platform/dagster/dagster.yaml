@@ -20,6 +20,7 @@ run_launcher:
       - DAGSTER_POSTGRES_USER
       - DAGSTER_POSTGRES_PASSWORD
       - DAGSTER_POSTGRES_DB
+      - DAGSTER_POSTGRES_HOST
     network: data_platform  # Docker Compose prefixes with directory name
     container_kwargs:
       volumes:
@@ -35,7 +36,8 @@ run_storage:
   class: PostgresRunStorage
   config:
     postgres_db:
-      hostname: postgres
+      hostname:
+        env: DAGSTER_POSTGRES_HOST
       username:
         env: DAGSTER_POSTGRES_USER
       password:
@@ -49,7 +51,8 @@ schedule_storage:
   class: PostgresScheduleStorage
   config:
     postgres_db:
-      hostname: postgres
+      hostname: 
+        env: DAGSTER_POSTGRES_HOST
       username:
         env: DAGSTER_POSTGRES_USER
       password:
@@ -63,7 +66,8 @@ event_log_storage:
   class: PostgresEventLogStorage
   config:
     postgres_db:
-      hostname: postgres
+      hostname:
+        env: DAGSTER_POSTGRES_HOST
       username:
         env: DAGSTER_POSTGRES_USER
       password:

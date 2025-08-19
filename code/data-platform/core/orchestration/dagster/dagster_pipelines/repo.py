@@ -1,4 +1,5 @@
 from dlt_ingestion.assets import f1_assets
+from dbt_pipeline import asset
 from dagster import (
     Definitions,
     load_assets_from_modules,
@@ -8,13 +9,28 @@ from dagster import (
 from dagster_dlt import DagsterDltResource
 import dagster as dg
 from dagster import (
-    build_schedule_from_partitioned_job,
     DefaultScheduleStatus,
     ScheduleDefinition,
+    build_schedule_from_partitioned_job,
+)
+from dagster_dbt import DbtCliResource
+
+all_assets = load_assets_from_modules([f1_assets, asset])
+
+yearly_partitions_def = dg.TimeWindowPartitionsDefinition(
+    cron_schedule="0 0 1 1 *",  # January 1st at midnight each year
+    fmt="%Y-%m-%d",
+    start="1950-01-01",
+    end_offset=1,  # Include the current, uncompleted year
 )
 
-all_assets = load_assets_from_modules([f1_assets])
-
+# Define dbt resource
+dbt_resource = DbtCliResource(
+    project_dir="/opt/dbt/app",
+    profiles_dir="/opt/dbt/app",
+    profile_name="data_platform_f1",  # Explicit profile name
+    target="dev",
+)
 
 f1_static_job = define_asset_job(
     "f1_bronze_static_job",
@@ -34,32 +50,85 @@ f1_race_details_job = define_asset_job(
     description="Monthly refresh of Race details data",
 )
 
-f1_race_season_schedule = ScheduleDefinition(
-    job=f1_race_details_job,
+f1_dbt_staging_job = define_asset_job(
+    "f1_bronze_dbt_staging_job",
+    selection=AssetSelection.assets(asset.dbt_staging_assets),
+    description="DBT staging assets for F1 bronze data",
+)
+
+
+@dg.schedule(
     cron_schedule="0 7 * 3-12 1",
+    job=f1_race_details_job,
     default_status=DefaultScheduleStatus.RUNNING,
-)
+)  # Every Monday at midnight
+def weekly_yearly_schedule(context):
+    # Get the current year partition
+    current_partition = yearly_partitions_def.get_partition_keys(
+        context.scheduled_execution_time
+    )
+    current_partition_key = current_partition[-1]
+    return dg.RunRequest(
+        partition_key=current_partition_key,
+        tags={
+            "schedule": "weekly_race_details",
+            "execution_time": context.scheduled_execution_time.isoformat(),
+        },
+    )
 
-f1_static_yearly_schedule = ScheduleDefinition(
-    job=f1_static_job,
-    cron_schedule="0 1 1 3 *",  # First day of March at 1 AM
-    default_status=DefaultScheduleStatus.RUNNING,
-)
 
-f1_yearly_schedule = ScheduleDefinition(
+@dg.schedule(
+    cron_schedule="0 1 1 3 *",
     job=f1_yearly_job,
-    cron_schedule="0 1 1 3 *",  # First day of March at 1 AM
     default_status=DefaultScheduleStatus.RUNNING,
-)
+)  # Every March 1st at 1 AM
+def yearly_schedule(context):
+    # Get the current year partition
+    current_partition = yearly_partitions_def.get_partition_keys(
+        context.scheduled_execution_time
+    )
+    current_partition_key = current_partition[-1]
+    return dg.RunRequest(
+        partition_key=current_partition_key,
+        tags={
+            "schedule": "yearly_refresh",
+            "execution_time": context.scheduled_execution_time.isoformat(),
+        },
+    )
+
+
+@dg.schedule(
+    cron_schedule="0 1 1 3 *",
+    job=f1_static_job,
+    default_status=DefaultScheduleStatus.RUNNING,
+)  # Every March 1st at 1 AM
+def static_yearly_schedule(context):
+    # Get the current year partition
+    current_partition = yearly_partitions_def.get_partition_keys(
+        context.scheduled_execution_time
+    )
+    current_partition_key = current_partition[-1]
+    return dg.RunRequest(
+        partition_key=current_partition_key,
+        tags={
+            "schedule": "static_refresh",
+            "execution_time": context.scheduled_execution_time.isoformat(),
+        },
+    )
+
 
 defs = Definitions(
     assets=all_assets,
-    jobs=[f1_static_job, f1_race_details_job, f1_yearly_job],
-    resources={"dlt": DagsterDltResource(), "io_manager": dg.fs_io_manager},
+    jobs=[f1_static_job, f1_race_details_job, f1_yearly_job, f1_dbt_staging_job],
+    resources={
+        "dlt": DagsterDltResource(),
+        "io_manager": dg.fs_io_manager,
+        "dbt": dbt_resource,
+    },
     executor=dg.in_process_executor,
     schedules=[
-        f1_race_season_schedule,
-        f1_static_yearly_schedule,
-        f1_yearly_schedule,
+        yearly_schedule,
+        static_yearly_schedule,
+        weekly_yearly_schedule,
     ],
 )
