@@ -21,6 +21,9 @@ services:
       DAGSTER_POSTGRES_USER: dagster
       DAGSTER_POSTGRES_PASSWORD: dagsterpass
       DAGSTER_POSTGRES_DB: dagster
+      DAGSTER_POSTGRES_HOST: postgres  # Use host networking for local development
+      DAGSTER_POSTGRES_PORT: 5432
+      
     volumes: # Make docker client accessible so we can terminate containers from the webserver
       - /var/run/docker.sock:/var/run/docker.sock
       - /tmp/io_manager_storage:/tmp/io_manager_storage
@@ -45,6 +48,8 @@ services:
       DAGSTER_POSTGRES_USER: dagster
       DAGSTER_POSTGRES_PASSWORD: dagsterpass
       DAGSTER_POSTGRES_DB: dagster
+      DAGSTER_POSTGRES_HOST: postgres  # Use host networking for local development
+      DAGSTER_POSTGRES_PORT: 5432
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - /tmp/io_manager_storage:/tmp/io_manager_storage
@@ -57,41 +62,22 @@ services:
     build: 
       context: ../../..
       dockerfile: code/data-platform/core/orchestration/dagster/Dockerfile
-    
+      # no_cache: true
     container_name: dagster_code
     image: dagster_code_image
-    restart: always
+    restart: unless-stopped
     environment:
       DAGSTER_POSTGRES_USER: dagster
       DAGSTER_POSTGRES_PASSWORD: dagsterpass
       DAGSTER_POSTGRES_DB: dagster
       DAGSTER_CURRENT_IMAGE: dagster_code_image
+      DAGSTER_POSTGRES_HOST: postgres  # Use host networking for local development
+      DAGSTER_POSTGRES_PORT: 5432
       
     volumes:
       - /mnt/c/F1Data:/data
       - io_manager_storage:/opt/dagster/app/storage
 
-    networks:
-      - data_platform
-    
-  dbt:
-    build: 
-      context: ../../..
-      dockerfile: code/data-platform/core/processing/dbt/data_platform_f1/Dockerfile
-    container_name: dbt
-    image: dbt_image
-    volumes:
-      - ../../../code/data-platform/core/processing/dbt/data_platform_f1:/usr/app
-      - ../../../code/data-platform/core/processing/dbt/data_platform_f1/profiles.yml:/root/.dbt/profiles.yml
-    depends_on:
-      postgres:
-        condition: service_healthy
-    environment:
-      - POSTGRES_HOST=postgres
-      - POSTGRES_USER=dagster
-      - POSTGRES_PASSWORD=dagsterpass
-      - POSTGRES_DB=dagster
-    command: sleep infinity
     networks:
       - data_platform
   
