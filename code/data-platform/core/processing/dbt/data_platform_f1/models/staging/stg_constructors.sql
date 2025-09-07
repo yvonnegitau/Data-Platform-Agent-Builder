@@ -9,7 +9,7 @@
 }}
 with source_data as (
     select
-        --Primay Keys
+        --Primary Keys
         year::int as season,
         "constructor_id",
         name as constructor_name,
