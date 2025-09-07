@@ -22,7 +22,7 @@ models:
           - dbt_utils.expression_is_true:
               expression: "> 0"
       - name: race_name
-        description: "Offical name of the Grand Prix"
+        description: "Official name of the Grand Prix"
         data_type: VARCHAR
         tests:
           - not_null
