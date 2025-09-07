@@ -16,7 +16,8 @@ RUN pip install --upgrade pip && \
 # Create directory structure with proper ownership
 RUN mkdir -p /opt/dbt/app/target && \
     mkdir -p /opt/dagster/app/storage && \
-    mkdir -p /opt/dagster/app/logs
+    mkdir -p /opt/dagster/app/logs && \
+    mkdir -p /tmp/build-logs 
 # Copy application code and set ownership
 COPY code/data-platform/core/orchestration/dagster/dagster_pipelines/ /opt/dagster/app/
 COPY code/data-platform/core/processing/dbt/data_platform_f1/ /opt/dbt/app/
