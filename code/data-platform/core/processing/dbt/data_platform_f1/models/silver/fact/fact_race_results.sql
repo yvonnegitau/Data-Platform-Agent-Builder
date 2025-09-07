@@ -35,7 +35,7 @@ circuits_base as (
     select * from {{ ref('dim_circuit') }}
 ),
 
-base_foundtation as (
+base_foundation as (
     select
         br.*,
         r.dim_race_key as race_key,
