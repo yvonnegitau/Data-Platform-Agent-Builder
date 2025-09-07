@@ -15,7 +15,7 @@ races_base as (
     select * from {{ ref('dim_races') }}
 ),
 
--- Get constructor information
+-- Get contructor information
 constructors_base as (
     select * from {{ ref('dim_constructor') }}
 ),
@@ -35,7 +35,7 @@ circuits_base as (
     select * from {{ ref('dim_circuit') }}
 ),
 
-base_foundation as (
+base_foundtation as (
     select
         br.*,
         r.dim_race_key as race_key,
@@ -64,7 +64,7 @@ performance_flags as(
     base_foundtation
         
 ),
-cummulative_metrics as (
+cumulative_metrics as (
     select 
     *,
     sum(points) over (partition by driver_key, season order by season, round) as season_points_running,
@@ -90,7 +90,7 @@ championship_metrics as (
     rank() over (partition by season, round order by season_points_running DESC) as championship_position_running,
     (max(season_points_running) over (partition by season, round)) - season_points_running as points_behind_leader_running
 
-    from cummulative_metrics
+    from cumulative_metrics
 )
 
 select * from championship_metrics

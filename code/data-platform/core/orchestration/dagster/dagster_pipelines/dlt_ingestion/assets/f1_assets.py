@@ -509,7 +509,7 @@ def f1_laps(
 @asset(
     compute_kind="dlt",
     group_name="f1_bronze_race_details",
-    description="F1 qualyfying data from Ergast API",
+    description="F1 qualifying data from Ergast API",
     partitions_def=yearly_partitions,
     backfill_policy=multi_run_backfill,
     deps=["f1_races"],
