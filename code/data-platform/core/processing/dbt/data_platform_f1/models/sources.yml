@@ -11,3 +11,5 @@ sources:
       - name: constructors
       - name: results
       - name: status
+      - name: constructor_standings
+      - name: driver_standings

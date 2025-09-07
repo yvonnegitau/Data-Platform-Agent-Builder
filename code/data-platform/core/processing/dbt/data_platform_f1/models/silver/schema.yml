@@ -1,0 +1,645 @@
+version: 2
+
+models:
+  - name: dim_circuit
+    description: "Circuit dimension containing all F1 racing venues with geographic, technical, and racing characteristics"
+    columns:
+      - name: dim_circuit_key
+        description: "Surrogate key for circuit dimension"
+        tests:
+          - not_null
+          - unique
+      - name: natural_key
+        description: "Natural circuit_id from source system"
+        tests:
+          - not_null
+          - unique
+      - name: circuit_name
+        description: "Full name of the racing circuit"
+        tests:
+          - not_null
+      - name: circuit_country
+        description: "Country where the circuit is located"
+        tests:
+          - not_null
+      - name: circuit_type
+        description: "Classification: Race Circuit or Street Circuit"
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['Race Circuit', 'Street Circuit']
+      - name: circuit_subtype
+        description: "Detailed circuit classification"
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['Classic Street Circuit', 'Modern Street Circuit', 'Semi-Street Circuit', 
+                      'Classic Race Circuit', 'Modern Race Circuit', 'Race Circuit']
+      - name: overtaking_difficulty
+        description: "How difficult it is to overtake at this circuit"
+        tests:
+          - accepted_values:
+              values: ['Nearly Impossible', 'Very Difficult', 'Difficult', 'Moderate', 'Good', 'Excellent']
+      - name: speed_profile
+        description: "Overall speed characteristics of the circuit"
+        tests:
+          - accepted_values:
+              values: ['Very High Speed', 'High Speed', 'Mixed Speed', 'Medium Speed', 'Low Speed']
+      - name: region
+        description: "Geographic region of the circuit"
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['Europe', 'Americas', 'Asia-Pacific', 'Oceania', 'Africa', 'Other']
+      - name: weather_pattern
+        description: "Typical weather conditions at the circuit"
+        tests:
+          - accepted_values:
+              values: ['Rain Prone', 'Desert/Hot', 'Tropical/Humid', 'Temperate']
+      - name: racing_excitement
+        description: "Historical rating for racing excitement"
+        tests:
+          - accepted_values:
+              values: ['High', 'Medium-High', 'Medium', 'Low']
+      - name: track_length_category
+        description: "Track length classification"
+        tests:
+          - accepted_values:
+              values: ['Short', 'Medium', 'Long']
+      - name: corner_count_category
+        description: "Number of corners classification"
+        tests:
+          - accepted_values:
+              values: ['Few Corners', 'Medium Corners', 'Many Corners']
+
+  - name: dim_driver
+    description: "Driver dimension with career statistics and classifications by season"
+    columns:
+      - name: dim_driver_key
+        description: "Surrogate key for driver dimension"
+        tests:
+          - not_null
+          - unique
+      - name: natural_key
+        description: "Natural driver_id from source system"
+        tests:
+          - not_null
+      - name: season
+        description: "F1 season year"
+        tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              min_value: 1950
+              max_value: 2030
+      - name: full_name
+        description: "Driver's full name"
+        tests:
+          - not_null
+      - name: driver_nationality
+        description: "Driver's nationality"
+        tests:
+          - not_null
+      - name: birth_date
+        description: "Driver's date of birth"
+        tests:
+          - not_null
+      - name: career_races_before_season
+        description: "Number of races completed before this season"
+        tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              min_value: 0
+              max_value: 500
+      - name: career_wins_before_season
+        description: "Number of wins before this season"
+        tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              min_value: 0
+              max_value: 200
+      - name: is_debut_season
+        description: "Flag indicating if this is the driver's debut season"
+        tests:
+          - not_null
+          - accepted_values:
+              values: [true, false]
+      - name: age_during_season
+        description: "Driver's age during the season"
+        tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              min_value: 15
+              max_value: 60
+      - name: driver_classification
+        description: "Age-based driver classification"
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['Young Driver', 'Experienced Driver', 'Veteran Driver', 'Unknown Classification']
+      - name: driver_experience
+        description: "Experience level based on race count"
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['Rookie', 'Novice', 'Experienced', 'Veteran', 'Legend']
+      - name: nationality_region
+        description: "Geographic region grouping of driver nationality"
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['European', 'Americas', 'Asian', 'Oceanian', 'African', 'Other']
+      - name: win_percentage_before_season
+        description: "Win percentage before current season"
+        tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              min_value: 0
+              max_value: 100
+
+  - name: dim_constructor
+    description: "Constructor dimension with team performance and championship history by season"
+    columns:
+      - name: dim_constructor_key
+        description: "Surrogate key for constructor dimension"
+        tests:
+          - not_null
+          - unique
+      - name: natural_key
+        description: "Natural constructor_id from source system"
+        tests:
+          - not_null
+      - name: season
+        description: "F1 season year"
+        tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              min_value: 1950
+              max_value: 2030
+      - name: constructor_name
+        description: "Name of the constructor/team"
+        tests:
+          - not_null
+      - name: nationality
+        description: "Nationality of the constructor"
+        tests:
+          - not_null
+      - name: current_season_position
+        description: "Championship position for this season"
+        tests:
+          - dbt_utils.accepted_range:
+              min_value: 1
+              max_value: 50
+      - name: current_season_points
+        description: "Championship points for this season"
+        tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              min_value: 0
+              max_value: 1000
+      - name: total_seasons_active
+        description: "Total seasons the constructor has been active"
+        tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              min_value: 1
+              max_value: 80
+      - name: constructor_experience_level
+        description: "Experience classification based on seasons active"
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['Rookie Constructor', 'New Constructor', 'Established Constructor', 
+                      'Veteran Constructor', 'Legendary Constructor']
+      - name: current_season_tier
+        description: "Performance tier for current season"
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['Championship Winner', 'Podium Constructor', 'Midfield Constructor', 
+                      'Points Scorer', 'Backmarker']
+      - name: nationality_region
+        description: "Geographic region grouping of constructor nationality"
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['European', 'Americas', 'Asian', 'Oceanian', 'African', 'Other']
+
+  - name: dim_races
+    description: "Race dimension containing race details, scheduling, and seasonal context"
+    columns:
+      - name: dim_race_key
+        description: "Surrogate key for race dimension"
+        tests:
+          - not_null
+          - unique
+      - name: season
+        description: "F1 season year"
+        tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              min_value: 1950
+              max_value: 2030
+      - name: round
+        description: "Round number within the season"
+        tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              min_value: 1
+              max_value: 30
+      - name: race_name
+        description: "Official name of the race"
+        tests:
+          - not_null
+      - name: race_date
+        description: "Date the race was held"
+        tests:
+          - not_null
+      - name: circuit_id
+        description: "Foreign key to circuit dimension"
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_circuit')
+              field: natural_key
+      - name: race_number_in_season
+        description: "Sequential race number within season"
+        tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              min_value: 1
+              max_value: 30
+      - name: total_races_in_season
+        description: "Total number of races in this season"
+        tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              min_value: 1
+              max_value: 30
+      - name: season_completion_percentage
+        description: "Percentage of season completed by this race"
+        tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              min_value: 0
+              max_value: 100
+      - name: race_day_name
+        description: "Day of week the race was held"
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
+      - name: season_phase
+        description: "Phase of season when race occurred"
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['Season Opener', 'Early Season', 'Mid Season First Half', 
+                      'Mid Season Second Half', 'Late Season', 'Season Finale']
+      - name: season_period
+        description: "Calendar season when race occurred"
+        tests:
+          - accepted_values:
+              values: ['Spring', 'Summer', 'Autumn', 'Winter']
+      - name: gap_classification
+        description: "Time gap classification from previous race"
+        tests:
+          - accepted_values:
+              values: ['Season Opener', 'Back-to-Back Weekend', 'Normal Gap', 
+                      'Extended Gap', 'Long Break', 'Extended Break']
+      - name: is_season_opener
+        description: "Flag for first race of season"
+        tests:
+          - not_null
+          - accepted_values:
+              values: [true, false]
+      - name: is_season_finale
+        description: "Flag for last race of season"
+        tests:
+          - not_null
+          - accepted_values:
+              values: [true, false]
+
+  - name: dim_status
+    description: "Race result status dimension with business categorizations"
+    columns:
+      - name: dim_status_key
+        description: "Surrogate key for status dimension"
+        tests:
+          - not_null
+          - unique
+      - name: natural_key
+        description: "Natural status_id from source system"
+        tests:
+          - not_null
+          - unique
+      - name: status_description
+        description: "Description of the race result status"
+        tests:
+          - not_null
+      - name: status_category
+        description: "Business category for the status"
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['Completed', 'Mechanical Failure', 'Accident', 'Disqualified', 
+                      'Did Not Start', 'Lapped', 'Other']
+      - name: is_race_completed
+        description: "Flag indicating if driver completed the race"
+        tests:
+          - not_null
+          - accepted_values:
+              values: [true, false]
+      - name: is_points_eligible
+        description: "Flag indicating if result is eligible for points"
+        tests:
+          - not_null
+          - accepted_values:
+              values: [true, false]
+
+  - name: dim_date
+    description: "Date dimension covering F1 history with business calendar attributes"
+    columns:
+      - name: dim_date_key
+        description: "Surrogate key for date dimension"
+        tests:
+          - not_null
+          - unique
+      - name: date_key
+        description: "Date key in YYYYMMDD format"
+        tests:
+          - not_null
+          - unique
+      - name: calendar_date
+        description: "Actual calendar date"
+        tests:
+          - not_null
+          - unique
+      - name: year
+        description: "Calendar year"
+        tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              min_value: 1950
+              max_value: 2050
+      - name: month
+        description: "Calendar month (1-12)"
+        tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              min_value: 1
+              max_value: 12
+      - name: day
+        description: "Calendar day (1-31)"
+        tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              min_value: 1
+              max_value: 31
+      - name: quarter
+        description: "Calendar quarter (1-4)"
+        tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              min_value: 1
+              max_value: 4
+      - name: day_of_week
+        description: "Day of week (0=Sunday, 6=Saturday)"
+        tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              min_value: 0
+              max_value: 6
+      - name: is_weekend
+        description: "Flag for weekend days"
+        tests:
+          - not_null
+          - accepted_values:
+              values: [true, false]
+      - name: is_sunday
+        description: "Flag for Sunday (traditional F1 race day)"
+        tests:
+          - not_null
+          - accepted_values:
+              values: [true, false]
+      - name: season
+        description: "Calendar season"
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['Spring', 'Summer', 'Autumn', 'Winter']
+      - name: f1_season_period
+        description: "F1 season period classification"
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['Off-Season', 'Early Season', 'Mid Season', 'Late Season']
+      - name: f1_era
+        description: "F1 regulation era classification"
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['Formula One Early Years', 'Constructor Championship Era Begins', 
+                      '1.5L Formula', '3.0L Formula', 'Turbo Era', 'Naturally Aspirated Era',
+                      'Grooved Tyre Era', 'V8 Era Begins', 'V8 + DRS/KERS Era', 
+                      'Turbo Hybrid Era', 'New Regulation Era', 'Future']
+      - name: decade
+        description: "Decade classification (e.g., 1980s)"
+        tests:
+          - not_null
+
+  - name: fact_race_results
+    description: "Fact table containing F1 race results with performance metrics and running totals"
+    columns:
+      - name: race_key
+        description: "Foreign key to race dimension"
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_races')
+              field: dim_race_key
+      - name: driver_key
+        description: "Foreign key to driver dimension"
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_driver')
+              field: dim_driver_key
+      - name: constructor_key
+        description: "Foreign key to constructor dimension"
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_constructor')
+              field: dim_constructor_key
+      - name: status_key
+        description: "Foreign key to status dimension"
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_status')
+              field: dim_status_key
+      - name: circuit_key
+        description: "Foreign key to circuit dimension"
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_circuit')
+              field: dim_circuit_key
+      - name: season
+        description: "F1 season year"
+        tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              min_value: 1950
+      - name: round
+        description: "Round number within the season"
+        tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              min_value: 1
+              max_value: 30
+      - name: position
+        description: "Final race position"
+        tests:
+          - dbt_utils.accepted_range:
+              min_value: 1
+              max_value: 50
+      - name: points
+        description: "Championship points earned"
+        tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              min_value: 0
+              max_value: 25
+      - name: grid_position
+        description: "Starting grid position"
+        tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              min_value: 0
+              max_value: 100
+      - name: total_laps
+        description: "Number of laps completed"
+        tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              min_value: 0
+              max_value: 200
+      - name: is_win
+        description: "Flag indicating race victory (1st place)"
+        tests:
+          - not_null
+          - accepted_values:
+              values: [0, 1]
+      - name: is_podium
+        description: "Flag indicating podium finish (top 3)"
+        tests:
+          - not_null
+          - accepted_values:
+              values: [0, 1]
+      - name: is_points_finish
+        description: "Flag indicating points-scoring finish"
+        tests:
+          - not_null
+          - accepted_values:
+              values: [0, 1]
+      - name: is_classified_finish
+        description: "Flag indicating classified finish"
+        tests:
+          - not_null
+          - accepted_values:
+              values: [0, 1]
+      - name: season_points_running
+        description: "Cumulative championship points within season"
+        tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              min_value: 0
+              max_value: 500
+      - name: season_wins_running
+        description: "Cumulative wins within season"
+        tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              min_value: 0
+              max_value: 30
+      - name: season_podiums_running
+        description: "Cumulative podiums within season"
+        tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              min_value: 0
+              max_value: 30
+      - name: career_points_running
+        description: "Cumulative career championship points"
+        tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              min_value: 0
+              max_value: 2000
+      - name: career_wins_running
+        description: "Cumulative career wins"
+        tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              min_value: 0
+              max_value: 100
+      - name: career_podiums_running
+        description: "Cumulative career podiums"
+        tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              min_value: 0
+              max_value: 200
+      - name: grid_to_finish_diff
+        description: "Position change from grid to finish (negative = improved)"
+        tests:
+          - dbt_utils.accepted_range:
+              min_value: -49
+              max_value: 49
+      - name: championship_position_running
+        description: "Championship standing after this race"
+        tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              min_value: 1
+              max_value: 50
+      - name: points_behind_leader_running
+        description: "Championship points gap to leader"
+        tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              min_value: 0
+              max_value: 500
+
+# Custom tests for cross-model validation
+# tests:
+#   - name: check_race_circuit_relationship
+#     description: "Ensure all races have valid circuits"
+#     sql: |
+#       select count(*)
+#       from {{ ref('dim_races') }} r
+#       left join {{ ref('dim_circuit') }} c on r.circuit_id = c.natural_key
+#       where c.natural_key is null
+  
+#   - name: check_season_race_sequence
+#     description: "Ensure race numbers are sequential within seasons"
+#     sql: |
+#       select season, count(*) as race_count, max(race_number_in_season) as max_race_number
+#       from {{ ref('dim_races') }}
+#       group by season
+#       having count(*) != max(race_number_in_season)
+  
+#   - name: check_driver_age_logic
+#     description: "Ensure driver ages are logical"
+#     sql: |
+#       select count(*)
+#       from {{ ref('dim_driver') }}
+#       where age_during_season < 15 or age_during_season > 60
+  
+#   - name: check_constructor_points_logic
+#     description: "Ensure constructor points are non-negative"
+#     sql: |
+#       select count(*)
+#       from {{ ref('dim_constructor') }}
+#       where current_season_points < 0 or career_points_before_season < 0

@@ -39,6 +39,7 @@ yearly_partitions = TimeWindowPartitionsDefinition(
     cron_schedule="0 0 1 1 *",  # Yearly: Jan 1st at midnight
     start="1950-01-01",
     fmt="%Y-%m-%d",
+    end_offset=1,
 )
 monthly_partitions = MonthlyPartitionsDefinition(
     start_date="1950-01-01"  # Optional end date

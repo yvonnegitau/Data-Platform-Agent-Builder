@@ -1,3 +1,4 @@
+from datetime import datetime
 from dlt_ingestion.assets import f1_assets
 from dbt_pipeline import asset
 from dagster import (
@@ -14,8 +15,11 @@ from dagster import (
     build_schedule_from_partitioned_job,
 )
 from dagster_dbt import DbtCliResource
+from dagster_duckdb import DuckDBResource
 
 all_assets = load_assets_from_modules([f1_assets, asset])
+current_year = datetime.now().year
+
 
 yearly_partitions_def = dg.TimeWindowPartitionsDefinition(
     cron_schedule="0 0 1 1 *",  # January 1st at midnight each year
@@ -25,11 +29,18 @@ yearly_partitions_def = dg.TimeWindowPartitionsDefinition(
 )
 
 # Define dbt resource
-dbt_resource = DbtCliResource(
+bronze_dbt_resource = DbtCliResource(
     project_dir="/opt/dbt/app",
     profiles_dir="/opt/dbt/app",
     profile_name="data_platform_f1",  # Explicit profile name
     target="dev",
+)
+
+silver_dbt_resource = DbtCliResource(
+    project_dir="/opt/dbt/app",
+    profiles_dir="/opt/dbt/app",
+    profile_name="data_platform_f1",  # Explicit profile name
+    target="duckdb_cross",
 )
 
 f1_static_job = define_asset_job(
@@ -42,18 +53,26 @@ f1_yearly_job = define_asset_job(
     "f1_bronze_yearly_job",
     selection=AssetSelection.groups("f1_bronze_yearly"),
     description="Yearly refresh of F1 static data",
+    partitions_def=yearly_partitions_def,
 )
 
 f1_race_details_job = define_asset_job(
     "f1_bronze_race_details_job",
     selection=AssetSelection.groups("f1_bronze_race_details"),
     description="Monthly refresh of Race details data",
+    partitions_def=yearly_partitions_def,
 )
 
 f1_dbt_staging_job = define_asset_job(
     "f1_bronze_dbt_staging_job",
     selection=AssetSelection.assets(asset.dbt_staging_assets),
     description="DBT staging assets for F1 bronze data",
+)
+
+f1_dbt_silver_job = define_asset_job(
+    "f1_dbt_silver_job",
+    selection=AssetSelection.assets(asset.dbt_silver_assets),
+    description="DBT silver assets for F1 bronze data",
 )
 
 
@@ -119,11 +138,18 @@ def static_yearly_schedule(context):
 
 defs = Definitions(
     assets=all_assets,
-    jobs=[f1_static_job, f1_race_details_job, f1_yearly_job, f1_dbt_staging_job],
+    jobs=[
+        f1_static_job,
+        f1_race_details_job,
+        f1_yearly_job,
+        f1_dbt_staging_job,
+        f1_dbt_silver_job,
+    ],
     resources={
         "dlt": DagsterDltResource(),
         "io_manager": dg.fs_io_manager,
-        "dbt": dbt_resource,
+        "dbt": bronze_dbt_resource,
+        "dbt_silver": silver_dbt_resource,
     },
     executor=dg.in_process_executor,
     schedules=[

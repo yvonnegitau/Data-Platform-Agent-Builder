@@ -7,7 +7,7 @@ services:
       context: ../../..
       dockerfile: infrastructure/data-platform/dagster/Dockerfile
     ports:
-      - "3001:3001"  # Add this port mapping
+      - "3001:3001"
     entrypoint:
       - dagster-webserver
       - -h
@@ -21,15 +21,15 @@ services:
       DAGSTER_POSTGRES_USER: dagster
       DAGSTER_POSTGRES_PASSWORD: dagsterpass
       DAGSTER_POSTGRES_DB: dagster
-      DAGSTER_POSTGRES_HOST: postgres  # Use host networking for local development
+      DAGSTER_POSTGRES_HOST: postgres
       DAGSTER_POSTGRES_PORT: 5432
-      
-    volumes: # Make docker client accessible so we can terminate containers from the webserver
-      - /var/run/docker.sock:/var/run/docker.sock
-      - /tmp/io_manager_storage:/tmp/io_manager_storage
-      - /mnt/c/F1Data:/data
+    volumes:
+      - dagster_storage:/opt/dagster/app/storage
+      - /mnt/c/F1Data/data:/data
     networks:
       - data_platform
+    depends_on:
+      - postgres
 
   # Dagster Daemon
   dagster-daemon:
@@ -48,12 +48,12 @@ services:
       DAGSTER_POSTGRES_USER: dagster
       DAGSTER_POSTGRES_PASSWORD: dagsterpass
       DAGSTER_POSTGRES_DB: dagster
-      DAGSTER_POSTGRES_HOST: postgres  # Use host networking for local development
+      DAGSTER_POSTGRES_HOST: postgres
       DAGSTER_POSTGRES_PORT: 5432
     volumes:
+      - dagster_storage:/opt/dagster/app/storage
       - /var/run/docker.sock:/var/run/docker.sock
-      - /tmp/io_manager_storage:/tmp/io_manager_storage
-      - /mnt/c/F1Data:/data
+      - /mnt/c/F1Data/data:/data
     networks:
       - data_platform
 
@@ -62,7 +62,6 @@ services:
     build: 
       context: ../../..
       dockerfile: code/data-platform/core/orchestration/dagster/Dockerfile
-      # no_cache: true
     container_name: dagster_code
     image: dagster_code_image
     restart: unless-stopped
@@ -71,16 +70,15 @@ services:
       DAGSTER_POSTGRES_PASSWORD: dagsterpass
       DAGSTER_POSTGRES_DB: dagster
       DAGSTER_CURRENT_IMAGE: dagster_code_image
-      DAGSTER_POSTGRES_HOST: postgres  # Use host networking for local development
+      DAGSTER_POSTGRES_HOST: postgres
       DAGSTER_POSTGRES_PORT: 5432
-      
     volumes:
-      - /mnt/c/F1Data:/data
-      - io_manager_storage:/opt/dagster/app/storage
-
+      - dagster_storage:/opt/dagster/app/storage
+      - /mnt/c/F1Data/data:/data
     networks:
       - data_platform
-  
+    depends_on:
+      - postgres
 
   postgres:
     image: postgres:15
@@ -105,13 +103,8 @@ services:
 volumes:
   postgres_data:
     driver: local
-  dagster_data:
+  dagster_storage:
     driver: local
-  dbt_data:
-    driver: local
-  io_manager_storage:
-    driver: local
-  
 
 networks:
   data_platform:

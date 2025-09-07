@@ -5,6 +5,7 @@ RUN apt-get update && apt-get install -y \
     git \
     && rm -rf /var/lib/apt/lists/*
 
+
 WORKDIR /opt/dagster/app
 
 # Copy and install Python dependencies
@@ -12,18 +13,19 @@ COPY code/data-platform/core/orchestration/dagster/requirements.txt /opt/dagster
 RUN pip install --upgrade pip && \
     pip install -r requirements.txt
 
-# Create directory structure
-RUN mkdir -p /data/medallion && chmod 755 /data/medallion
-RUN mkdir -p /opt/dbt/app/target && chmod 755 /opt/dbt/app/target
-RUN mkdir -p /tmp/build-logs && chmod 755 /tmp/build-logs
-
-# Copy application code
+# Create directory structure with proper ownership
+RUN mkdir -p /opt/dbt/app/target && \
+    mkdir -p /opt/dagster/app/storage && \
+    mkdir -p /opt/dagster/app/logs
+# Copy application code and set ownership
 COPY code/data-platform/core/orchestration/dagster/dagster_pipelines/ /opt/dagster/app/
 COPY code/data-platform/core/processing/dbt/data_platform_f1/ /opt/dbt/app/
+
 
 # Set environment variables
 ENV DBT_PROJECT_DIR=/opt/dbt/app
 ENV DBT_PROFILES_DIR=/opt/dbt/app
+ENV DAGSTER_HOME=/opt/dagster/app
 
 # Build args and env vars for Postgres
 ARG DAGSTER_POSTGRES_HOST
@@ -41,9 +43,7 @@ ENV DAGSTER_POSTGRES_PASSWORD=${DAGSTER_POSTGRES_PASSWORD}
 # Prepare dbt project
 WORKDIR /opt/dbt/app
 RUN dbt deps --profiles-dir /opt/dbt/app || echo "No packages to install"
-
 RUN dbt parse --profiles-dir /opt/dbt/app
-
 
 RUN echo "=== DBT COMPILE START ===" && \
     dbt compile --profiles-dir /opt/dbt/app --profile data_platform_f1 2>&1 | tee /tmp/build-logs/dbt-compile.log && \
@@ -57,11 +57,10 @@ RUN echo "=== DBT COMPILE START ===" && \
      echo "=== END ERROR LOG ===" && \
      echo "Will retry at runtime")
 
-
-# Switch back to Dagster working directory
 WORKDIR /opt/dagster/app
 
 EXPOSE 4000
 
-# Use the traditional command. The new command is causing a lot of instability when working with docker 
-CMD ["dagster", "api", "grpc", "-h", "0.0.0.0", "-p", "4000", "-f", "repo.py"]
+
+
+CMD ["dagster", "api", "grpc", "-h", "0.0.0.0", "-p", "4000", "-f", "repo.py" ]

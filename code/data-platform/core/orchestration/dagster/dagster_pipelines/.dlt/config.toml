@@ -2,7 +2,7 @@
 
 [destinations.duckdb]
 # Single database with schema separation for medallion architecture
-credentials = "duckdb:////data/medallion/f1_data.duckdb"
+credentials = "duckdb:////data/medallion/f1_analytics.duckdb"
 
 [load]
 delete_completed_jobs = true

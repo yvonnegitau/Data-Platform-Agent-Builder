@@ -10,7 +10,7 @@ run_coordinator:
     tag_concurrency_limits:
       - key: "dagster/backfill"
         value: "true"
-        limit: 2  # Only 2 backfill runs at once
+        limit: 10 # Only 10 backfill runs at once
 
 run_launcher:
   module: dagster_docker
@@ -25,8 +25,8 @@ run_launcher:
     container_kwargs:
       volumes:
         - /var/run/docker.sock:/var/run/docker.sock
-        - io_manager_storage:/opt/dagster/app/storage
-        - /mnt/c/F1Data:/data # Add DuckDB volume access
+        - dagster_storage:/opt/dagster/app/storage
+        - /mnt/c/F1Data/data:/data
       auto_remove: true
       
     image: dagster_code_image # Use the image from dagster_code service
@@ -75,3 +75,5 @@ event_log_storage:
       db_name:
         env: DAGSTER_POSTGRES_DB
       port: 5432
+telemetry:
+  enabled: false  # Disable telemetry for local development

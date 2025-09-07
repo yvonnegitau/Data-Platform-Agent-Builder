@@ -44,4 +44,22 @@ models:
         description: "Staging models for F1 data"
       # +contract:
       #   enforced: true
-      
+    silver: # Silver Layer uses Duckdb with cross-database access
+      dims:
+        +materialized: table
+        +schema: silver
+        +tags: ["silver","dimension"]
+        +pre-hook: "{{ dbt_utils.log_info('Running pre-hook for silver dimensions') }}"
+        +post-hook: "{{ dbt_utils.log_info('Running post-hook for silver dimensions') }}"
+        +meta:
+          owner: "data_team"
+          description: "Silver dimension models for F1 data"
+      facts:
+        +materialized: table
+        +schema: silver
+        +tags: ["silver","fact"]
+        +pre-hook: "{{ dbt_utils.log_info('Running pre-hook for silver facts') }}"
+        +post-hook: "{{ dbt_utils.log_info('Running post-hook for silver facts') }}"
+        +meta:
+          owner: "data_team"
+          description: "Silver fact models for F1 data"
