@@ -15,7 +15,7 @@ races_base as (
     select * from {{ ref('dim_races') }}
 ),
 
--- Get contructor information
+-- Get constructor information
 constructors_base as (
     select * from {{ ref('dim_constructor') }}
 ),
