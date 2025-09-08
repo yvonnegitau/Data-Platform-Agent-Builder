@@ -85,3 +85,4 @@ npm-debug.log*
 ehthumbs.db
 Thumbs.db
 *.txt
+.github/chatmodes/
