@@ -4,7 +4,7 @@ WORKDIR /opt/dagster/app
 
 # Install dependencies
 COPY infrastructure/data-platform/dagster/requirements.txt .
-RUN pip install -r requirements.txt
+RUN pip install --upgrade pip && pip install -r requirements.txt
 
 # Copy dagster configuration
 COPY infrastructure/data-platform/dagster/dagster.yaml .
