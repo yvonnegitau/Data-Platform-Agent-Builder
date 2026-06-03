@@ -21,12 +21,16 @@ run_launcher:
       - DAGSTER_POSTGRES_PASSWORD
       - DAGSTER_POSTGRES_DB
       - DAGSTER_POSTGRES_HOST
+      - DESTINATION__POSTGRES__CREDENTIALS__HOST
+      - DESTINATION__POSTGRES__CREDENTIALS__DATABASE
+      - DESTINATION__POSTGRES__CREDENTIALS__USERNAME
+      - DESTINATION__POSTGRES__CREDENTIALS__PASSWORD
     network: data_platform  # Docker Compose prefixes with directory name
     container_kwargs:
       volumes:
         - /var/run/docker.sock:/var/run/docker.sock
         - dagster_storage:/opt/dagster/app/storage
-        - ~/data/f1:/data
+        - /Users/aura/data/f1:/data
       auto_remove: true
       
     image: dagster_code_image # Use the image from dagster_code service

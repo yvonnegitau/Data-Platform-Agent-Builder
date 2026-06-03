@@ -25,7 +25,7 @@ services:
       DAGSTER_POSTGRES_PORT: 5432
     volumes:
       - dagster_storage:/opt/dagster/app/storage
-      - ~/data/f1:/data
+      - ${HOME}/data/f1:/data
     networks:
       - data_platform
     depends_on:
@@ -50,10 +50,14 @@ services:
       DAGSTER_POSTGRES_DB: dagster
       DAGSTER_POSTGRES_HOST: postgres
       DAGSTER_POSTGRES_PORT: 5432
+      DESTINATION__POSTGRES__CREDENTIALS__HOST: postgres
+      DESTINATION__POSTGRES__CREDENTIALS__DATABASE: dagster
+      DESTINATION__POSTGRES__CREDENTIALS__USERNAME: dagster
+      DESTINATION__POSTGRES__CREDENTIALS__PASSWORD: dagsterpass
     volumes:
       - dagster_storage:/opt/dagster/app/storage
       - /var/run/docker.sock:/var/run/docker.sock
-      - ~/data/f1:/data
+      - ${HOME}/data/f1:/data
     networks:
       - data_platform
 
@@ -72,9 +76,14 @@ services:
       DAGSTER_CURRENT_IMAGE: dagster_code_image
       DAGSTER_POSTGRES_HOST: postgres
       DAGSTER_POSTGRES_PORT: 5432
+      # DLT postgres destination credentials
+      DESTINATION__POSTGRES__CREDENTIALS__HOST: postgres
+      DESTINATION__POSTGRES__CREDENTIALS__DATABASE: dagster
+      DESTINATION__POSTGRES__CREDENTIALS__USERNAME: dagster
+      DESTINATION__POSTGRES__CREDENTIALS__PASSWORD: dagsterpass
     volumes:
       - dagster_storage:/opt/dagster/app/storage
-      - ~/data/f1:/data
+      - ${HOME}/data/f1:/data
     networks:
       - data_platform
     depends_on:
