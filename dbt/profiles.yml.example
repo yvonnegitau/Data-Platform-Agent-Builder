@@ -1,0 +1,28 @@
+data_platform_f1:
+  target: dev
+  outputs:
+    # Staging layer: DuckDB with postgres extension to read from f1_bronze schema
+    dev:
+      type: duckdb
+      path: "{{ env_var('DUCKDB_PATH', '/data/medallion/f1_data.duckdb') }}"
+      threads: 4
+      schema: staging
+      extensions:
+        - postgres
+      attach:
+        - path: "dbname={{ env_var('POSTGRES_DB', 'dagster') }} host={{ env_var('POSTGRES_HOST', 'postgres') }} user={{ env_var('POSTGRES_USER', 'dagster') }} password={{ env_var('POSTGRES_PASSWORD', 'dagsterpass') }} port={{ env_var('POSTGRES_PORT', '5432') }}"
+          type: postgres
+          alias: postgres_db
+
+    # Silver layer: DuckDB with cross-database access to postgres staging/bronze
+    duckdb_cross:
+      type: duckdb
+      path: "{{ env_var('DUCKDB_PATH', '/data/medallion/f1_data.duckdb') }}"
+      threads: 4
+      schema: silver
+      extensions:
+        - postgres
+      attach:
+        - path: "dbname={{ env_var('POSTGRES_DB', 'dagster') }} host={{ env_var('POSTGRES_HOST', 'postgres') }} user={{ env_var('POSTGRES_USER', 'dagster') }} password={{ env_var('POSTGRES_PASSWORD', 'dagsterpass') }} port={{ env_var('POSTGRES_PORT', '5432') }}"
+          type: postgres
+          alias: postgres_db

@@ -1,0 +1,453 @@
+version: 2
+
+models:
+  - name: stg_races
+    description: "Cleaned and standardized race data"
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns: [season, round, circuit_id]
+    columns:
+      - name: season
+        description: "F1 season year"
+        data_type: INTEGER
+        tests:
+          - not_null
+          - dbt_utils.expression_is_true:
+              expression: ">= 1950"  # F1 started in 1950
+      - name: round
+        description: "Round number within the season"
+        data_type: INTEGER
+        tests:
+          - not_null
+          - dbt_utils.expression_is_true:
+              expression: "> 0"
+      - name: race_name
+        description: "Official name of the Grand Prix"
+        data_type: VARCHAR
+        tests:
+          - not_null
+      - name: race_date
+        description: "Date of the race"
+        data_type: DATE
+        tests:
+          - not_null
+      # - name: race_time
+      #   description: "Official start time of the race"
+        # data_type: TIME
+      - name: data_quality
+        description: "Flag indicating data quality issues"
+        data_type: VARCHAR
+        tests:
+          - accepted_values:
+              values: ['VALID', 'INVALID', 'MISSING_DATE', 'MISSING_CIRCUIT_ID']
+      - name: race_url 
+        description: "URL for more information about the race"
+        data_type: VARCHAR
+      - name: extracted_at
+        description: "Timestamp when the data was extracted"
+        data_type: TIMESTAMP
+        tests:
+          - not_null
+      - name: processed_at
+        description: "Timestamp when the data was processed"
+        data_type: TIMESTAMP
+        tests:
+          - not_null
+
+  - name: stg_circuits
+    description: "Cleaned and standardized circuit data"
+    columns:
+      - name: circuit_id
+        description: "Unique identifier for the circuit"
+        data_type: VARCHAR
+        tests:
+          - not_null
+          - unique
+      - name: circuit_name
+        description: "Name of the circuit"
+        data_type: VARCHAR
+        tests:
+          - not_null
+      - name: circuit_locality
+        description: "Location of the circuit"
+        data_type: VARCHAR
+      - name: circuit_country
+        description: "Country where the circuit is located"
+        data_type: VARCHAR
+      - name: circuit_latitude
+        description: "Latitude of the circuit location"
+        data_type: VARCHAR
+      - name: circuit_longitude
+        description: "Longitude of the circuit location"
+        data_type: VARCHAR
+      - name: circuit_url
+        description: "URL for more information about the circuit"
+        data_type: VARCHAR
+      - name: data_quality
+        description: "Flag indicating data quality issues"
+        data_type: VARCHAR
+        tests:
+          - accepted_values:
+              values: ['VALID', 'MISSING_CIRCUIT_ID', 'MISSING_CIRCUIT_NAME', 'MISSING_COUNTRY']
+      - name: extracted_at
+        description: "Timestamp when the data was extracted"
+        data_type: TIMESTAMP
+
+  - name: stg_constructors
+    description: "Cleaned and standardized constructor data"
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns: [constructor_id, season]
+    columns:
+      - name: constructor_id
+        description: "Unique identifier for the constructor"
+        data_type: VARCHAR
+        tests:
+          - not_null
+      - name: constructor_name
+        description: "Name of the constructor"
+        data_type: VARCHAR
+        tests:
+          - not_null
+      - name: nationality
+        description: "Nationality of the constructor"
+        data_type: VARCHAR
+        tests:
+          - not_null
+      - name: constructor_url
+        description: "URL for more information about the constructor"
+        data_type: VARCHAR
+      - name: data_quality
+        description: "Flag indicating data quality issues"
+        data_type: VARCHAR
+        tests:
+          - accepted_values:
+              values: ['VALID', 'MISSING_NAME', 'INVALID']
+      - name: extracted_at
+        description: "Timestamp when the data was extracted"
+        data_type: TIMESTAMP
+        tests:
+          - not_null
+      - name: processed_at
+        description: "Timestamp when the data was processed"
+        data_type: TIMESTAMP
+        tests:
+          - not_null
+
+  - name: stg_constructor_standings
+    description: "Cleaned and standardized constructor championship standings data"
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns: [season, constructor_id]
+    columns:
+      - name: season
+        description: "F1 season year"
+        data_type: INTEGER
+      - name: constructor_id
+        description: "Unique identifier for the constructor"
+        data_type: VARCHAR
+        tests:
+          - not_null
+      - name: constructor_name
+        description: "Name of the constructor"
+        data_type: VARCHAR
+        tests:
+          - not_null
+      - name: constructor_url
+        description: "URL for more information about the constructor"
+        data_type: VARCHAR
+      - name: constructor_nationality
+        description: "Nationality of the constructor"
+        data_type: VARCHAR
+        tests:
+          - not_null
+      - name: total_rounds
+        description: "Total number of rounds/races in the season"
+        data_type: INTEGER
+        tests:
+          - not_null
+          - dbt_utils.expression_is_true:
+              expression: "> 0"
+          - dbt_utils.accepted_range:
+              min_value: 1
+              max_value: 30  # Maximum reasonable number of races
+      - name: position
+        description: "Final championship position for the season"
+        data_type: INTEGER
+      - name: points
+        description: "Total championship points earned in the season"
+        data_type: FLOAT
+      - name: total_wins
+        description: "Total number of race wins in the season"
+        data_type: INTEGER
+      - name: data_quality
+        description: "Flag indicating data quality issues"
+        data_type: VARCHAR
+        tests:
+          - accepted_values:
+              values: ['VALID', 'INVALID', 'MISSING_NAME']
+      - name: extracted_at
+        description: "Timestamp when the data was extracted"
+        data_type: TIMESTAMP
+        tests:
+          - not_null
+      - name: processed_at
+        description: "Timestamp when the data was processed"
+        data_type: TIMESTAMP
+        tests:
+          - not_null
+
+  - name: stg_drivers
+    description: "Cleaned and standardized driver data"
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns: [driver_id, season]
+    columns:
+      - name: driver_id
+        description: "Unique identifier for the driver"
+        data_type: VARCHAR
+        tests:
+          - not_null
+      - name: full_name
+        description: "Full name of the driver"
+        data_type: VARCHAR
+        tests:
+          - not_null
+      - name: first_name
+        description: "First name of the driver"
+        data_type: VARCHAR
+        tests:
+          - not_null
+      - name: last_name
+        description: "Last name of the driver"
+        data_type: VARCHAR
+        tests:
+          - not_null
+      - name: birth_date
+        description: "Birth date of the driver"
+        data_type: DATE
+        tests:
+          - not_null
+          - dbt_utils.expression_is_true:
+              expression: "<= current_date"  # Birth date cannot be in the future
+      - name: nationality
+        description: "Nationality of the driver"
+        data_type: VARCHAR
+        tests:
+          - not_null
+      - name: season
+        description: "F1 season year"
+        data_type: INTEGER
+        tests:
+          - not_null
+          - dbt_utils.expression_is_true:
+              expression: ">= 1950"  # F1 started in 1950
+      - name: driver_url
+        description: "URL for more information about the driver"
+        data_type: VARCHAR
+      - name: data_quality
+        description: "Flag indicating data quality issues"
+        data_type: VARCHAR
+        tests:
+          - accepted_values:
+              values: ['VALID', 'MISSING_NAME', 'INVALID','MISSING_BIRTH_DATE']
+      - name: extracted_at
+        description: "Timestamp when the data was extracted"
+        data_type: TIMESTAMP 
+        tests:
+          - not_null
+      - name: processed_at
+        description: "Timestamp when the data was processed"
+        data_type: TIMESTAMP
+        tests:
+          - not_null
+
+  - name: stg_results
+    description: "Cleaned and standardized race results data"
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns: [season, round, car_number, constructor_id,driver_id]
+    columns:
+      - name: season
+        description: "F1 season year"
+        data_type: INTEGER
+        tests:
+          - not_null
+          - dbt_utils.expression_is_true:
+              expression: ">= 1950"  # F1 started in 1950
+      - name: round
+        description: "Round number within the season"
+        data_type: INTEGER
+        tests:
+          - not_null
+          - dbt_utils.expression_is_true:
+              expression: "> 0"
+      - name: driver_id
+        description: "Unique identifier for the driver"
+        data_type: VARCHAR
+        tests:
+          - not_null
+      - name: constructor_id
+        description: "Unique identifier for the constructor"
+        data_type: VARCHAR
+        tests:
+          - not_null
+      - name: grid_position
+        description: "Starting grid position"
+        data_type: INTEGER
+        tests:
+          - not_null
+      - name: position
+        description: "Finishing position"
+        data_type: INTEGER
+        tests:
+          - not_null
+      - name: points
+        description: "Points earned"
+        data_type: FLOAT
+        tests:
+          - not_null
+      - name: total_laps
+        description: "Number of laps completed"
+        data_type: INTEGER
+        tests:
+          - not_null
+      - name: position_text
+        description: "Textual representation of finishing position"
+        data_type: VARCHAR
+      - name: car_number
+        description: "Car number of the driver"
+        data_type: INTEGER
+      - name: race_status
+        description: "Status of the race (e.g., Finished, Retired)"
+        data_type: VARCHAR
+      - name: race_time
+        description: "Time taken to complete the race"
+        data_type: VARCHAR
+      - name: finish_time
+        description: "Finish time of the driver"
+        data_type: VARCHAR
+      - name: data_quality
+        description: "Flag indicating data quality issues"
+        data_type: VARCHAR
+        tests:
+          - accepted_values:
+              values: ['VALID', 'MISSING_RACE_ID', 'MISSING_DRIVER_ID', 'MISSING_CONSTRUCTOR_ID']
+      - name: extracted_at
+        description: "Timestamp when the data was extracted"
+        data_type: TIMESTAMP
+        tests:
+          - not_null
+      - name: processed_at
+        description: "Timestamp when the data was processed"
+        data_type: TIMESTAMP
+        tests:
+          - not_null
+
+  - name: stg_status
+    description: "Cleaned and standardized status data"
+    columns:
+      - name: status_id
+        description: "Unique identifier for the status"
+        data_type: INTEGER
+        tests:
+          - not_null
+      - name: status
+        description: "Name of the status"
+        data_type: VARCHAR
+        tests:
+          - not_null
+      - name: status_count
+        description: "Count of occurrences of this status"
+        data_type: INTEGER
+        tests:
+          - not_null
+      - name: data_quality
+        description: "Flag indicating data quality issues"
+        data_type: VARCHAR
+        tests:
+          - accepted_values:
+              values: ['VALID', 'MISSING_STATUS_NAME']
+      - name: extracted_at
+        description: "Timestamp when the data was extracted"
+        data_type: TIMESTAMP
+        tests:
+          - not_null
+      - name: processed_at
+        description: "Timestamp when the data was processed"
+        data_type: TIMESTAMP
+        tests:
+          - not_null
+  - name: stg_driver_standings
+    description: "Cleaned and standardized driver championship standings data"
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns: [season, round, driver_id]
+    columns:
+      - name: driver_id
+        description: "Unique identifier for the driver"
+        data_type: VARCHAR
+        tests:
+          - not_null
+      - name: season
+        description: "F1 season year"
+        data_type: INTEGER
+        tests:
+          - not_null
+          - dbt_utils.expression_is_true:
+              expression: ">= 1950"  # F1 started in 1950
+      - name: round
+        description: "Round number within the season"
+        data_type: INTEGER
+        tests:
+          - not_null
+          - dbt_utils.expression_is_true:
+              expression: "> 0"
+      - name: position
+        description: "Championship position after this round"
+        data_type: INTEGER
+        tests:
+          - not_null
+          - dbt_utils.expression_is_true:
+              expression: "> 0"
+          - dbt_utils.accepted_range:
+              min_value: 1
+              max_value: 50  # Maximum reasonable number of drivers in standings
+      - name: position_text
+        description: "Textual representation of championship position"
+        data_type: VARCHAR
+      - name: points
+        description: "Total championship points after this round"
+        data_type: FLOAT
+        tests:
+          - not_null
+          - dbt_utils.expression_is_true:
+              expression: ">= 0"  # Points cannot be negative
+      - name: wins
+        description: "Total number of wins after this round"
+        data_type: INTEGER
+        tests:
+          - not_null
+          - dbt_utils.expression_is_true:
+              expression: ">= 0"  # Wins cannot be negative
+      - name: is_final_season_standings
+        description: "Flag indicating if this is the final standings for the season"
+        data_type: BOOLEAN
+        tests:
+          - not_null
+      - name: data_quality
+        description: "Flag indicating data quality issues"
+        data_type: VARCHAR
+        tests:
+          - accepted_values:
+              values: ['VALID', 'INVALID', 'MISSING_DRIVER_ID', 'MISSING_POINTS', 'INVALID_WINS']
+      - name: extracted_at
+        description: "Timestamp when the data was extracted"
+        data_type: TIMESTAMP
+        tests:
+          - not_null
+      - name: processed_at
+        description: "Timestamp when the data was processed"
+        data_type: TIMESTAMP
+        tests:
+          - not_null

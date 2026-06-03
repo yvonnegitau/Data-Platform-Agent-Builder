@@ -1,0 +1,121 @@
+version: '3.8'
+
+services:
+  # Dagster Webserver UI
+  dagster-webserver:
+    build: 
+      context: ..
+      dockerfile: infrastructure/dagster.Dockerfile
+    ports:
+      - "3001:3001"
+    entrypoint:
+      - dagster-webserver
+      - -h
+      - "0.0.0.0"
+      - -p
+      - "3001"
+      - -w
+      - workspace.yaml
+    container_name: dagster_webserver
+    environment:
+      DAGSTER_POSTGRES_USER: dagster
+      DAGSTER_POSTGRES_PASSWORD: dagsterpass
+      DAGSTER_POSTGRES_DB: dagster
+      DAGSTER_POSTGRES_HOST: postgres
+      DAGSTER_POSTGRES_PORT: 5432
+    volumes:
+      - dagster_storage:/opt/dagster/app/storage
+      - ${HOME}/data/f1:/data
+    networks:
+      - data_platform
+    depends_on:
+      - postgres
+
+  # Dagster Daemon
+  dagster-daemon:
+    build: 
+      context: ..
+      dockerfile: infrastructure/dagster.Dockerfile
+    entrypoint:
+      - dagster-daemon
+      - run
+    restart: on-failure
+    container_name: dagster_daemon
+    depends_on:
+      - dagster-code
+      - postgres
+    environment:
+      DAGSTER_POSTGRES_USER: dagster
+      DAGSTER_POSTGRES_PASSWORD: dagsterpass
+      DAGSTER_POSTGRES_DB: dagster
+      DAGSTER_POSTGRES_HOST: postgres
+      DAGSTER_POSTGRES_PORT: 5432
+      DESTINATION__POSTGRES__CREDENTIALS__HOST: postgres
+      DESTINATION__POSTGRES__CREDENTIALS__DATABASE: dagster
+      DESTINATION__POSTGRES__CREDENTIALS__USERNAME: dagster
+      DESTINATION__POSTGRES__CREDENTIALS__PASSWORD: dagsterpass
+    volumes:
+      - dagster_storage:/opt/dagster/app/storage
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ${HOME}/data/f1:/data
+    networks:
+      - data_platform
+
+  # Dagster Code 
+  dagster-code:
+    build: 
+      context: ..
+      dockerfile: dagster/Dockerfile
+    container_name: dagster_code
+    image: dagster_code_image
+    restart: unless-stopped
+    environment:
+      DAGSTER_POSTGRES_USER: dagster
+      DAGSTER_POSTGRES_PASSWORD: dagsterpass
+      DAGSTER_POSTGRES_DB: dagster
+      DAGSTER_CURRENT_IMAGE: dagster_code_image
+      DAGSTER_POSTGRES_HOST: postgres
+      DAGSTER_POSTGRES_PORT: 5432
+      # DLT postgres destination credentials
+      DESTINATION__POSTGRES__CREDENTIALS__HOST: postgres
+      DESTINATION__POSTGRES__CREDENTIALS__DATABASE: dagster
+      DESTINATION__POSTGRES__CREDENTIALS__USERNAME: dagster
+      DESTINATION__POSTGRES__CREDENTIALS__PASSWORD: dagsterpass
+    volumes:
+      - dagster_storage:/opt/dagster/app/storage
+      - ${HOME}/data/f1:/data
+    networks:
+      - data_platform
+    depends_on:
+      - postgres
+
+  postgres:
+    image: postgres:15
+    container_name: postgres
+    environment:
+      POSTGRES_USER: dagster
+      POSTGRES_PASSWORD: dagsterpass
+      POSTGRES_DB: dagster
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./postgres:/docker-entrypoint-initdb.d
+    networks:
+      - data_platform
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U dagster -d dagster"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres_data:
+    driver: local
+  dagster_storage:
+    driver: local
+
+networks:
+  data_platform:
+    name: data_platform
+    driver: bridge
