@@ -5,6 +5,19 @@ RUN apt-get update && apt-get install -y \
     git \
     && rm -rf /var/lib/apt/lists/*
 
+# Install system dependencies required to build psycopg2 from source
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libpq-dev \
+    gcc \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install dependencies
+COPY code/data-platform/core/orchestration/dagster/requirements.txt /opt/dagster/app/requirements.txt
+RUN pip install --upgrade pip && pip install -r /opt/dagster/app/requirements.txt
+
+# Create the medallion directory structure
+RUN mkdir -p /data/medallion
+RUN chmod 755 /data/medallion
 
 WORKDIR /opt/dagster/app
 

@@ -25,7 +25,7 @@ services:
       DAGSTER_POSTGRES_PORT: 5432
     volumes:
       - dagster_storage:/opt/dagster/app/storage
-      - /mnt/c/F1Data/data:/data
+      - ~/data/f1:/data
     networks:
       - data_platform
     depends_on:
@@ -53,7 +53,7 @@ services:
     volumes:
       - dagster_storage:/opt/dagster/app/storage
       - /var/run/docker.sock:/var/run/docker.sock
-      - /mnt/c/F1Data/data:/data
+      - ~/data/f1:/data
     networks:
       - data_platform
 
@@ -74,7 +74,7 @@ services:
       DAGSTER_POSTGRES_PORT: 5432
     volumes:
       - dagster_storage:/opt/dagster/app/storage
-      - /mnt/c/F1Data/data:/data
+      - ~/data/f1:/data
     networks:
       - data_platform
     depends_on:

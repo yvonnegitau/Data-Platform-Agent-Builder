@@ -45,6 +45,9 @@ dbt_packages/
 logs/
 profiles.yml
 
+# Local data directory
+data/
+
 # DuckDB
 *.duckdb
 *.duckdb.wal
@@ -84,5 +87,4 @@ npm-debug.log*
 .Trashes
 ehthumbs.db
 Thumbs.db
-*.txt
 .github/chatmodes/

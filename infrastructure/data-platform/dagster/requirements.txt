@@ -1,0 +1,5 @@
+dagster>=1.9,<2
+dagster-graphql>=1.9,<2
+dagster-webserver>=1.9,<2
+dagster-postgres
+dagster-docker

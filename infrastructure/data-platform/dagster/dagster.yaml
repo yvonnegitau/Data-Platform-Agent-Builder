@@ -26,7 +26,7 @@ run_launcher:
       volumes:
         - /var/run/docker.sock:/var/run/docker.sock
         - dagster_storage:/opt/dagster/app/storage
-        - /mnt/c/F1Data/data:/data
+        - ~/data/f1:/data
       auto_remove: true
       
     image: dagster_code_image # Use the image from dagster_code service

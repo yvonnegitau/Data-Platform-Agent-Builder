@@ -1,0 +1,15 @@
+dagster>=1.9,<2
+dagit>=1.9,<2
+dagster-graphql>=1.9,<2
+dagster-postgres
+dagster-duckdb
+dagster-docker
+dlt[duckdb]
+dlt[postgres]
+dbt-core
+dbt-duckdb
+python-dateutil
+requests
+tenacity
+dagster-embedded-elt
+dagster-dbt
