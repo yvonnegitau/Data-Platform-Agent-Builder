@@ -29,7 +29,7 @@ import time
 import fcntl
 
 
-from dlt_ingestion.sources.f1_source import (
+from ingestion.f1_source import (
     f1_api_source,
 )
 

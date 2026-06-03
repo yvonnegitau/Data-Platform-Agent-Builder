@@ -4,12 +4,11 @@ FROM python:3.10-slim
 WORKDIR /opt/dagster/app
 
 # Install dependencies
-COPY infrastructure/data-platform/dagster/requirements.txt .
+COPY infrastructure/dagster.requirements.txt requirements.txt
 RUN pip install --upgrade pip && pip install -r requirements.txt
 
-# Copy dagster configuration
-COPY infrastructure/data-platform/dagster/dagster.yaml .
-COPY infrastructure/data-platform/dagster/workspace.yaml .
+COPY infrastructure/dagster.yaml .
+COPY infrastructure/workspace.yaml .
 
 
 # Set environment variables

@@ -1,6 +1,6 @@
 from datetime import datetime
-from dlt_ingestion.assets import f1_assets
-from dbt_pipeline import asset
+from ingestion import f1_assets
+import dbt_assets as asset
 from dagster import (
     Definitions,
     load_assets_from_modules,
@@ -11,11 +11,8 @@ from dagster_dlt import DagsterDltResource
 import dagster as dg
 from dagster import (
     DefaultScheduleStatus,
-    ScheduleDefinition,
-    build_schedule_from_partitioned_job,
 )
 from dagster_dbt import DbtCliResource
-from dagster_duckdb import DuckDBResource
 
 all_assets = load_assets_from_modules([f1_assets, asset])
 current_year = datetime.now().year

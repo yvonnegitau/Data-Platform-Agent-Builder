@@ -4,8 +4,8 @@ services:
   # Dagster Webserver UI
   dagster-webserver:
     build: 
-      context: ../../..
-      dockerfile: infrastructure/data-platform/dagster/Dockerfile
+      context: ..
+      dockerfile: infrastructure/dagster.Dockerfile
     ports:
       - "3001:3001"
     entrypoint:
@@ -34,8 +34,8 @@ services:
   # Dagster Daemon
   dagster-daemon:
     build: 
-      context: ../../..
-      dockerfile: infrastructure/data-platform/dagster/Dockerfile
+      context: ..
+      dockerfile: infrastructure/dagster.Dockerfile
     entrypoint:
       - dagster-daemon
       - run
@@ -60,8 +60,8 @@ services:
   # Dagster Code 
   dagster-code:
     build: 
-      context: ../../..
-      dockerfile: code/data-platform/core/orchestration/dagster/Dockerfile
+      context: ..
+      dockerfile: dagster/Dockerfile
     container_name: dagster_code
     image: dagster_code_image
     restart: unless-stopped
@@ -91,7 +91,7 @@ services:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./postgres/init:/docker-entrypoint-initdb.d
+      - ./postgres:/docker-entrypoint-initdb.d
     networks:
       - data_platform
     healthcheck:
