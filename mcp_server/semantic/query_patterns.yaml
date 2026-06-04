@@ -1,0 +1,326 @@
+# Query Patterns — Worked SQL examples Claude can use as templates for ad-hoc analysis.
+# When a user asks something not covered by a pre-built tool,
+# Claude calls get_query_pattern() to find a relevant example,
+# then adapts it using execute_sql().
+
+patterns:
+
+  - name: driver_season_summary
+    description: "All races for a single driver in a single season with running totals."
+    parameters: [driver_name, season]
+    sql: |
+      SELECT
+        r.round,
+        r.race_name,
+        ci.circuit_name,
+        f.grid_position,
+        f.position,
+        f.points,
+        f.is_win,
+        f.is_podium,
+        f.season_points_running,
+        f.season_wins_running,
+        f.championship_position_running,
+        f.points_behind_leader_running
+      FROM silver.fact_race_results f
+      JOIN silver.dim_driver d      ON f.driver_key    = d.dim_driver_key
+      JOIN silver.dim_races r       ON f.race_key      = r.dim_race_key
+      JOIN silver.dim_circuit ci    ON f.circuit_key   = ci.dim_circuit_key
+      WHERE d.full_name ILIKE '%{driver_name}%'
+        AND f.season = {season}
+      ORDER BY r.round
+
+  - name: head_to_head_same_race
+    description: "Compare two drivers at every race where both competed. Shows who finished ahead."
+    parameters: [driver_a, driver_b]
+    sql: |
+      WITH driver_races AS (
+        SELECT
+          f.season, f.round,
+          d.full_name,
+          f.position,
+          f.grid_position,
+          f.points,
+          r.race_name,
+          ci.circuit_name
+        FROM silver.fact_race_results f
+        JOIN silver.dim_driver d   ON f.driver_key  = d.dim_driver_key
+        JOIN silver.dim_races r    ON f.race_key    = r.dim_race_key
+        JOIN silver.dim_circuit ci ON f.circuit_key = ci.dim_circuit_key
+        WHERE d.full_name ILIKE '%{driver_a}%'
+           OR d.full_name ILIKE '%{driver_b}%'
+      )
+      SELECT
+        a.season,
+        a.round,
+        a.race_name,
+        a.full_name    AS driver_a_name,
+        a.position     AS driver_a_pos,
+        b.full_name    AS driver_b_name,
+        b.position     AS driver_b_pos,
+        CASE
+          WHEN a.position IS NULL AND b.position IS NULL THEN 'both_dnf'
+          WHEN a.position IS NULL THEN b.full_name
+          WHEN b.position IS NULL THEN a.full_name
+          WHEN a.position < b.position THEN a.full_name
+          ELSE b.full_name
+        END AS finished_ahead
+      FROM driver_races a
+      JOIN driver_races b
+        ON a.season = b.season AND a.round = b.round
+        AND a.full_name ILIKE '%{driver_a}%'
+        AND b.full_name ILIKE '%{driver_b}%'
+      ORDER BY a.season, a.round
+
+  - name: season_championship_progression
+    description: "Round-by-round championship standings for a full season. Good for visualising title battles."
+    parameters: [season]
+    sql: |
+      SELECT
+        r.round,
+        r.race_name,
+        r.race_date,
+        d.full_name,
+        f.championship_position_running,
+        f.season_points_running,
+        f.points_behind_leader_running,
+        f.season_wins_running
+      FROM silver.fact_race_results f
+      JOIN silver.dim_races r   ON f.race_key   = r.dim_race_key
+      JOIN silver.dim_driver d  ON f.driver_key = d.dim_driver_key
+      WHERE f.season = {season}
+        AND f.championship_position_running <= 5
+      ORDER BY r.round, f.championship_position_running
+
+  - name: biggest_comebacks
+    description: "Races with the largest grid-to-finish improvement (gained most places). Use for comeback stories."
+    parameters: [limit]
+    sql: |
+      SELECT
+        f.season,
+        r.race_name,
+        d.full_name,
+        f.grid_position,
+        f.position,
+        f.grid_to_finish_diff AS places_gained
+      FROM silver.fact_race_results f
+      JOIN silver.dim_driver d   ON f.driver_key  = d.dim_driver_key
+      JOIN silver.dim_races r    ON f.race_key    = r.dim_race_key
+      WHERE f.grid_to_finish_diff IS NOT NULL
+        AND f.grid_to_finish_diff > 0
+      ORDER BY f.grid_to_finish_diff DESC
+      LIMIT {limit}
+
+  - name: constructor_season_performance
+    description: "A constructor's results across a full season — all drivers, all races, points progression."
+    parameters: [constructor_name, season]
+    sql: |
+      SELECT
+        r.round,
+        r.race_name,
+        d.full_name AS driver,
+        f.grid_position,
+        f.position,
+        f.points,
+        f.is_win,
+        f.is_podium
+      FROM silver.fact_race_results f
+      JOIN silver.dim_constructor c ON f.constructor_key = c.dim_constructor_key
+      JOIN silver.dim_driver d      ON f.driver_key      = d.dim_driver_key
+      JOIN silver.dim_races r       ON f.race_key        = r.dim_race_key
+      WHERE c.constructor_name ILIKE '%{constructor_name}%'
+        AND f.season = {season}
+      ORDER BY r.round, f.position
+
+  - name: rolling_form
+    description: "A driver's rolling average finishing position over the last N races — shows momentum and form swings across a season."
+    parameters: [driver_name, season, window_size]
+    window_functions: [AVG() OVER, ROW_NUMBER() OVER]
+    sql: |
+      WITH driver_results AS (
+        SELECT
+          r.round,
+          r.race_name,
+          f.position,
+          f.points,
+          f.is_win,
+          f.is_podium
+        FROM silver.fact_race_results f
+        JOIN silver.dim_driver d ON f.driver_key = d.dim_driver_key
+        JOIN silver.dim_races r  ON f.race_key   = r.dim_race_key
+        WHERE d.full_name ILIKE '%{driver_name}%'
+          AND f.season = {season}
+      )
+      SELECT
+        round,
+        race_name,
+        position,
+        points,
+        AVG(position) OVER (
+          ORDER BY round
+          ROWS BETWEEN {window_size} PRECEDING AND CURRENT ROW
+        ) AS rolling_avg_position,
+        AVG(points) OVER (
+          ORDER BY round
+          ROWS BETWEEN {window_size} PRECEDING AND CURRENT ROW
+        ) AS rolling_avg_points,
+        SUM(is_win) OVER (
+          ORDER BY round
+          ROWS BETWEEN {window_size} PRECEDING AND CURRENT ROW
+        ) AS wins_last_n_races
+      FROM driver_results
+      ORDER BY round
+
+  - name: points_gap_over_season
+    description: "How the points gap between two title contenders evolved round by round. Use for 'title battle' narratives."
+    parameters: [driver_a, driver_b, season]
+    window_functions: [LAG() OVER]
+    sql: |
+      WITH contenders AS (
+        SELECT
+          r.round,
+          r.race_name,
+          d.full_name,
+          f.season_points_running,
+          f.championship_position_running
+        FROM silver.fact_race_results f
+        JOIN silver.dim_driver d ON f.driver_key = d.dim_driver_key
+        JOIN silver.dim_races r  ON f.race_key   = r.dim_race_key
+        WHERE f.season = {season}
+          AND (d.full_name ILIKE '%{driver_a}%' OR d.full_name ILIKE '%{driver_b}%')
+      ),
+      pivoted AS (
+        SELECT
+          round,
+          race_name,
+          MAX(season_points_running) FILTER (WHERE full_name ILIKE '%{driver_a}%') AS driver_a_pts,
+          MAX(season_points_running) FILTER (WHERE full_name ILIKE '%{driver_b}%') AS driver_b_pts
+        FROM contenders
+        GROUP BY round, race_name
+      )
+      SELECT
+        round,
+        race_name,
+        driver_a_pts,
+        driver_b_pts,
+        driver_a_pts - driver_b_pts                                    AS gap,
+        LAG(driver_a_pts - driver_b_pts) OVER (ORDER BY round)         AS gap_previous_round,
+        (driver_a_pts - driver_b_pts)
+          - LAG(driver_a_pts - driver_b_pts) OVER (ORDER BY round)     AS gap_change_this_race
+      FROM pivoted
+      ORDER BY round
+
+  - name: driver_rank_within_season
+    description: "Rank drivers within each race of a season by points scored — shows who was quickest race-by-race, not just overall."
+    parameters: [season]
+    window_functions: [RANK() OVER, SUM() OVER]
+    sql: |
+      SELECT
+        r.round,
+        r.race_name,
+        d.full_name,
+        f.position,
+        f.points,
+        RANK() OVER (
+          PARTITION BY r.round
+          ORDER BY f.points DESC, f.position ASC
+        ) AS points_rank_this_race,
+        SUM(f.points) OVER (
+          PARTITION BY d.full_name
+          ORDER BY r.round
+          ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
+        ) AS cumulative_points
+      FROM silver.fact_race_results f
+      JOIN silver.dim_driver d ON f.driver_key = d.dim_driver_key
+      JOIN silver.dim_races r  ON f.race_key   = r.dim_race_key
+      WHERE f.season = {season}
+      ORDER BY r.round, points_rank_this_race
+
+  - name: win_streak
+    description: "Detect consecutive race wins (win streaks) for a driver. Uses LAG to compare each race to the previous."
+    parameters: [driver_name]
+    window_functions: [LAG() OVER, SUM() OVER]
+    sql: |
+      WITH driver_wins AS (
+        SELECT
+          f.season,
+          r.round,
+          r.race_name,
+          f.is_win,
+          LAG(f.is_win) OVER (ORDER BY f.season, r.round) AS prev_race_win
+        FROM silver.fact_race_results f
+        JOIN silver.dim_driver d ON f.driver_key = d.dim_driver_key
+        JOIN silver.dim_races r  ON f.race_key   = r.dim_race_key
+        WHERE d.full_name ILIKE '%{driver_name}%'
+      ),
+      streak_groups AS (
+        SELECT
+          *,
+          -- New streak starts when current race is a win but previous wasn't
+          SUM(CASE WHEN is_win = 1 AND (prev_race_win = 0 OR prev_race_win IS NULL) THEN 1 ELSE 0 END)
+            OVER (ORDER BY season, round) AS streak_id
+        FROM driver_wins
+      )
+      SELECT
+        streak_id,
+        MIN(season)    AS streak_start_season,
+        MIN(round)     AS streak_start_round,
+        MAX(season)    AS streak_end_season,
+        MAX(round)     AS streak_end_round,
+        COUNT(*)       AS consecutive_wins,
+        MIN(race_name) AS first_race,
+        MAX(race_name) AS last_race
+      FROM streak_groups
+      WHERE is_win = 1
+      GROUP BY streak_id
+      HAVING COUNT(*) > 1
+      ORDER BY consecutive_wins DESC
+
+  - name: position_vs_expectation
+    description: "Compare each driver's actual finishing position to their average finishing position at that circuit — who over/underperformed their baseline?"
+    parameters: [season]
+    window_functions: [AVG() OVER PARTITION BY]
+    sql: |
+      WITH circuit_baselines AS (
+        SELECT
+          f.driver_key,
+          f.circuit_key,
+          AVG(f.position) FILTER (WHERE f.position IS NOT NULL) AS avg_position_at_circuit,
+          COUNT(*) AS races_at_circuit
+        FROM silver.fact_race_results f
+        GROUP BY f.driver_key, f.circuit_key
+      )
+      SELECT
+        r.race_name,
+        d.full_name,
+        f.position                                              AS actual_position,
+        ROUND(b.avg_position_at_circuit, 1)                    AS historical_avg_at_circuit,
+        ROUND(b.avg_position_at_circuit - f.position, 1)       AS outperformed_by,
+        b.races_at_circuit                                     AS prior_races_at_circuit
+      FROM silver.fact_race_results f
+      JOIN silver.dim_driver d      ON f.driver_key   = d.dim_driver_key
+      JOIN silver.dim_races r       ON f.race_key     = r.dim_race_key
+      JOIN circuit_baselines b
+        ON f.driver_key = b.driver_key AND f.circuit_key = b.circuit_key
+      WHERE f.season = {season}
+        AND f.position IS NOT NULL
+      ORDER BY outperformed_by DESC
+
+  - name: circuit_winners
+    description: "All race winners at a specific circuit across history."
+    parameters: [circuit_name]
+    sql: |
+      SELECT
+        f.season,
+        r.race_name,
+        d.full_name   AS winner,
+        c.constructor_name AS team,
+        f.grid_position   AS started_from
+      FROM silver.fact_race_results f
+      JOIN silver.dim_circuit ci    ON f.circuit_key    = ci.dim_circuit_key
+      JOIN silver.dim_driver d      ON f.driver_key     = d.dim_driver_key
+      JOIN silver.dim_constructor c ON f.constructor_key = c.dim_constructor_key
+      JOIN silver.dim_races r       ON f.race_key       = r.dim_race_key
+      WHERE ci.circuit_name ILIKE '%{circuit_name}%'
+        AND f.is_win = 1
+      ORDER BY f.season DESC

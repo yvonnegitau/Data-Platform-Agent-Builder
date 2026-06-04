@@ -1,0 +1,135 @@
+# F1 Silver Layer — Semantic Catalog
+# This file is the single source of truth for what every table and column means.
+# It is loaded by the MCP server and returned to Claude when it calls get_semantic_context().
+# Claude uses this to write correct SQL without guessing column names.
+
+tables:
+
+  fact_race_results:
+    description: >
+      The central fact table. One row per driver per race. Every metric about
+      race performance lives here. Join to dimension tables via *_key columns.
+    grain: "One row = one driver in one race"
+    schema: silver
+    join_keys:
+      dim_driver:      "driver_key = dim_driver_key"
+      dim_races:       "race_key = dim_race_key"
+      dim_circuit:     "circuit_key = dim_circuit_key"
+      dim_constructor: "constructor_key = dim_constructor_key"
+      dim_status:      "status_key = dim_status_key"
+    columns:
+      season:                           "Calendar year of the race (e.g. 2023)"
+      round:                            "Race number within the season (1 = first race)"
+      grid_position:                    "Starting grid position. 1 = pole position. NULL if driver did not start."
+      position:                         "Finishing position. NULL if the driver did not finish (DNF/DSQ/etc)."
+      points:                           "Points scored in this race under the points system active at the time."
+      laps:                             "Number of laps completed."
+      is_win:                           "1 if position = 1, else 0."
+      is_podium:                        "1 if position <= 3, else 0."
+      is_points_finish:                 "1 if points > 0, else 0."
+      is_classified_finish:             "1 if the driver was classified as a finisher (completed enough laps), else 0."
+      grid_to_finish_diff:              "grid_position - position. Positive = gained places. Use this for comeback/recovery analysis. NULL if not classified."
+      season_points_running:            "Cumulative points scored in this season up to and including this race."
+      season_wins_running:              "Cumulative wins in this season up to and including this race."
+      season_podiums_running:           "Cumulative podiums in this season up to and including this race."
+      season_points_finishes_running:   "Cumulative points finishes in this season up to and including this race."
+      career_points_running:            "Cumulative points across entire career up to and including this race."
+      career_wins_running:              "Cumulative wins across entire career up to and including this race."
+      career_podiums_running:           "Cumulative podiums across entire career up to and including this race."
+      championship_position_running:    "Driver's championship standing after this race. 1 = leading."
+      points_behind_leader_running:     "Points gap to the championship leader after this race. 0 if the driver is leading."
+      drivers_in_race:                  "Number of drivers that started this race."
+      driver_key:                       "Foreign key → dim_driver.dim_driver_key"
+      race_key:                         "Foreign key → dim_races.dim_race_key"
+      circuit_key:                      "Foreign key → dim_circuit.dim_circuit_key"
+      constructor_key:                  "Foreign key → dim_constructor.dim_constructor_key"
+      status_key:                       "Foreign key → dim_status.dim_status_key"
+
+  dim_driver:
+    description: "One row per driver per season. Driver attributes and career stats as of the start of that season."
+    grain: "One row = one driver in one season"
+    schema: silver
+    primary_key: dim_driver_key
+    columns:
+      dim_driver_key:      "Surrogate key. Use this to join to fact_race_results."
+      natural_key:         "Original driver ID from the source API (e.g. 'hamilton', 'max_verstappen')."
+      full_name:           "Driver's full display name (e.g. 'Lewis Hamilton'). Use ILIKE '%name%' for fuzzy search."
+      first_name:          "Given name."
+      last_name:           "Family name."
+      nationality:         "Driver's nationality (e.g. 'British', 'Dutch')."
+      season:              "The season this record applies to."
+      driver_number:       "Car number used in this season."
+      date_of_birth:       "Driver's date of birth."
+      age_at_season_start: "Driver's age at the start of this season."
+      seasons_active:      "Number of seasons raced up to and including this season."
+      career_experience:   "Classification: 'Rookie' (first season), 'Experienced' (2-5 seasons), 'Veteran' (6+ seasons), 'Legend' (10+ seasons)."
+
+  dim_constructor:
+    description: "One row per constructor (team) per season."
+    grain: "One row = one constructor in one season"
+    schema: silver
+    primary_key: dim_constructor_key
+    columns:
+      dim_constructor_key: "Surrogate key. Use this to join to fact_race_results."
+      natural_key:         "Original constructor ID from the source API (e.g. 'red_bull', 'mercedes')."
+      constructor_name:    "Full display name (e.g. 'Red Bull', 'Mercedes'). Use ILIKE for fuzzy search."
+      nationality:         "Constructor's nationality."
+      season:              "The season this record applies to."
+
+  dim_circuit:
+    description: "One row per circuit. Circuit characteristics and location data."
+    grain: "One row = one circuit (not season-specific)"
+    schema: silver
+    primary_key: dim_circuit_key
+    columns:
+      dim_circuit_key:    "Surrogate key. Use this to join to fact_race_results."
+      natural_key:        "Original circuit ID from the source API (e.g. 'monaco', 'monza')."
+      circuit_name:       "Full display name (e.g. 'Circuit de Monaco'). Use ILIKE for fuzzy search."
+      location:           "City or region."
+      country:            "Country."
+
+  dim_races:
+    description: "One row per race. Race event metadata."
+    grain: "One row = one race"
+    schema: silver
+    primary_key: dim_race_key
+    columns:
+      dim_race_key:  "Surrogate key. Use this to join to fact_race_results."
+      season:        "Calendar year."
+      round:         "Race number within the season."
+      race_name:     "Official race name (e.g. 'Monaco Grand Prix')."
+      race_date:     "Date the race took place."
+      circuit_id:    "Links to the circuit."
+
+  dim_status:
+    description: "Lookup table for race result status codes."
+    grain: "One row = one status type"
+    schema: silver
+    primary_key: dim_status_key
+    columns:
+      dim_status_key:       "Surrogate key."
+      status_description:   "Original status text (e.g. 'Finished', 'Engine', '+1 Lap')."
+      status_category:      "Business grouping: 'Completed', 'Mechanical Failure', 'Accident', 'Lapped', 'Other'."
+
+
+metrics:
+  win_rate:
+    definition: "Proportion of races won."
+    sql: "COUNT(*) FILTER (WHERE is_win = 1)::FLOAT / COUNT(*)"
+    note: "Always filter to started races. NULL grid_position means did not start."
+
+  dnf_rate:
+    definition: "Proportion of races where the driver did not finish."
+    sql: "COUNT(*) FILTER (WHERE position IS NULL)::FLOAT / COUNT(*)"
+
+  podium_rate:
+    definition: "Proportion of races where the driver finished on the podium."
+    sql: "COUNT(*) FILTER (WHERE is_podium = 1)::FLOAT / COUNT(*)"
+
+  avg_finishing_position:
+    definition: "Average finishing position, excluding DNFs."
+    sql: "AVG(position) FILTER (WHERE position IS NOT NULL)"
+
+  points_per_race:
+    definition: "Average points scored per race started."
+    sql: "SUM(points)::FLOAT / COUNT(*)"

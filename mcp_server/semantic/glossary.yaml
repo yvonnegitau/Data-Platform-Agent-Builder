@@ -1,0 +1,77 @@
+# F1 Domain Glossary
+# Definitions of F1-specific terms that an AI needs to understand to give correct answers.
+# Returned by the get_glossary() MCP tool.
+
+terms:
+
+  DNF:
+    full: "Did Not Finish"
+    definition: "A driver who started a race but did not complete it. In the data: position IS NULL."
+
+  DNS:
+    full: "Did Not Start"
+    definition: "A driver who qualified but did not start the race. In the data: grid_position IS NULL."
+
+  DSQ:
+    full: "Disqualified"
+    definition: "A driver removed from the results after the race. Treated as a non-finish in the data."
+
+  Pole Position:
+    definition: "Starting 1st on the grid, earned by setting the fastest time in qualifying. grid_position = 1."
+
+  Podium:
+    definition: "Finishing in the top 3 (positions 1, 2, or 3). is_podium = 1 in the data."
+
+  Points System:
+    definition: >
+      The number of points awarded per finishing position. This has changed multiple times:
+      - 1950–1959: Top 5 score (8-6-4-3-2), plus 1 point for fastest lap.
+      - 1960–1990: Top 6 score (9-6-4-3-2-1).
+      - 1991–2009: Top 8 score (10-6-4-3-2-1 then 10-8-6-5-4-3-2-1).
+      - 2010–present: Top 10 score (25-18-15-12-10-8-6-4-2-1), plus 1 point for fastest lap (since 2019).
+      IMPORTANT: Do not compare raw points totals across era boundaries. Use win counts or win percentages instead.
+
+  Constructors Championship:
+    definition: "The team championship. Points are summed across both drivers for each constructor each race."
+
+  Drivers Championship:
+    definition: "The individual driver championship. Won by the driver with the most points at season end."
+
+  Sprint Race:
+    definition: "A shorter race (introduced in 2021) held on Saturday at select rounds. Counts for points but is separate from the main Grand Prix result in this dataset."
+
+  Safety Car:
+    definition: "A pace car deployed on track during incidents. Bunches the field together and affects race strategies and results."
+
+  DRS:
+    full: "Drag Reduction System"
+    definition: "An adjustable rear wing that reduces drag and aids overtaking. Available in designated zones when a driver is within 1 second of the car ahead. Introduced in 2011."
+
+  Undercut:
+    definition: "A pit stop strategy where a driver pits earlier than a rival to gain track position via faster lap times on fresh tyres."
+
+  Backmarker:
+    definition: "A driver or team at the back of the field, typically being lapped by leaders."
+
+  Lapped:
+    definition: "When the race leader has lapped (passed) another driver. status_category = 'Lapped' in the data."
+
+  Grid:
+    definition: "The starting order for the race, determined by qualifying session lap times."
+
+  Grand Slam:
+    definition: "Achieving pole position, fastest lap, leading every lap, and winning the race — all in the same Grand Prix."
+
+  Hat-trick:
+    definition: "Winning three consecutive races."
+
+  Back-to-back:
+    definition: "Winning two consecutive races."
+
+  Era:
+    definition: >
+      F1 is commonly divided into technical eras based on engine regulations:
+      - Turbo Era (1977–1988): Turbocharged engines.
+      - Normally Aspirated Era (1989–2005): Naturally aspirated V8/V10/V12.
+      - V8 Era (2006–2013): Standardised V8 engines.
+      - Hybrid Era (2014–present): 1.6L V6 turbo-hybrid power units.
