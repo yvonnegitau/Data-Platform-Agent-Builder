@@ -1,9 +1,9 @@
 {{
     config(
         indexes=[
-            { "columns":['season', 'round', 'car_number', 'driver_id','constructor_id'], 'type': 'btree', 'unique': true},
-            { "columns":[ 'constructor_id'], 'type': 'btree'},
-            { "columns":[ 'driver_id'], 'type': 'btree' }
+            { "columns":['season', 'round', 'car_number', 'driver_id','constructor_id'], 'unique': true},
+            { "columns":[ 'constructor_id']},
+            { "columns":[ 'driver_id'] }
         ]
     )
 }}

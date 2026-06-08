@@ -1,18 +1,79 @@
 from datetime import datetime
 import time
+import threading
 import logging
 from typing import Any, Dict, List, Optional, Union
+from concurrent.futures import ThreadPoolExecutor, as_completed
 import dlt
 import dagster
-
+import requests
 
 from dagster_dlt import DagsterDltResource
-
-from requests.models import Response
 from dlt.sources.helpers.rest_client.paginators import OffsetPaginator
 from dlt.sources.helpers.rest_client import RESTClient
+from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
 
 logger = logging.getLogger(__name__)
+
+_MAX_WORKERS = 5         # parallel round fetches
+_REQUESTS_PER_SEC = 3    # global cap across all threads
+
+
+class _RateLimiter:
+    """Token bucket: allows up to `rate` requests per second across all threads."""
+    def __init__(self, rate: float):
+        self._rate = rate
+        self._lock = threading.Lock()
+        self._last = time.monotonic()
+
+    def acquire(self):
+        with self._lock:
+            now = time.monotonic()
+            gap = 1.0 / self._rate
+            wait = self._last + gap - now
+            if wait > 0:
+                time.sleep(wait)
+            self._last = time.monotonic()
+
+
+_rate_limiter = _RateLimiter(_REQUESTS_PER_SEC)
+
+
+def _make_client(base_url: str, data_selector: str) -> RESTClient:
+    return RESTClient(
+        base_url=base_url,
+        paginator=OffsetPaginator(limit=100, offset=0, total_path="MRData.total"),
+        data_selector=data_selector,
+    )
+
+
+@retry(
+    retry=retry_if_exception_type(requests.HTTPError),
+    wait=wait_exponential(multiplier=2, min=2, max=60),
+    stop=stop_after_attempt(5),
+    reraise=True,
+)
+def _fetch_pages(client: RESTClient, endpoint: str) -> List[Any]:
+    pages = []
+    for page in client.paginate(endpoint):
+        pages.append(page)
+    return pages
+
+
+def _fetch_round_laps(base_url: str, year: int, round_num: int) -> List[Dict]:
+    client = _make_client(base_url, "MRData.RaceTable.Races")
+    rows = []
+    try:
+        for page in _fetch_pages(client, f"{year}/{round_num}/laps.json"):
+            if page and "Laps" in page[0]:
+                for lap in page[0]["Laps"]:
+                    lap["season"] = page[0]["season"]
+                    lap["round"] = page[0]["round"]
+                    lap["date_extracted_at"] = datetime.now().isoformat()
+                    rows.append(lap)
+    except Exception as e:
+        logger.warning(f"Failed to fetch laps for {year} round {round_num}: {e}")
+    return rows
 
 
 @dlt.source(name="f1_source")
@@ -21,145 +82,54 @@ def f1_api_source(
     years: Optional[Union[List[int], range]] = None,
     rounds: Optional[List[int]] = None,
 ) -> List[DagsterDltResource]:
-    """
-    Source for the F1 API.
-    """
     if years is None:
         years = [datetime.now().year]
 
-    @dlt.resource(
-        name="seasons",
-        primary_key="season",
-        write_disposition="merge",
-    )
+    @dlt.resource(name="seasons", primary_key="season", write_disposition="merge")
     def seasons():
-        logger = dagster.get_dagster_logger()
-        logger.info("Processing F1 seasons")
+        log = dagster.get_dagster_logger()
+        client = _make_client(base_url, "MRData.SeasonTable.Seasons")
+        for page in _fetch_pages(client, "/seasons.json"):
+            log.info(f"Extracted {len(page)} seasons")
+            for row in page:
+                row["date_extracted_at"] = datetime.now().isoformat()
+                yield row
 
-        # Create a REST client with the correct paginator
-        client = RESTClient(
-            base_url=base_url,
-            paginator=OffsetPaginator(
-                limit=100,
-                offset=0,
-                total_path="MRData.total",
-            ),
-            data_selector="MRData.SeasonTable.Seasons",
-        )
-
-        # Make the request with pagination
-        for page in client.paginate(
-            "/seasons.json",
-        ):
-            logger.info(f"Extracted {len(page)} seasons")
-            for season in page:
-                season["date_extracted_at"] = datetime.now().isoformat()
-                yield season
-
-    @dlt.resource(
-        name="circuits",
-        primary_key="circuitId",
-        write_disposition="merge",
-    )
+    @dlt.resource(name="circuits", primary_key="circuitId", write_disposition="merge")
     def circuits():
-        """
-        Resource for F1 circuits.
-        """
-        logger = dagster.get_dagster_logger()
-        logger.info("Processing F1 circuits")
+        log = dagster.get_dagster_logger()
+        client = _make_client(base_url, "MRData.CircuitTable.Circuits")
+        for page in _fetch_pages(client, "/circuits.json"):
+            log.info(f"Extracted {len(page)} circuits")
+            for row in page:
+                row["date_extracted_at"] = datetime.now().isoformat()
+                yield row
 
-        # Create a REST client with the correct paginator
-        client = RESTClient(
-            base_url=base_url,
-            paginator=OffsetPaginator(
-                limit=100,
-                offset=0,
-                total_path="MRData.total",
-            ),
-            data_selector="MRData.CircuitTable.Circuits",
-        )
-
-        # Make the request with pagination
-        for page in client.paginate(
-            "/circuits.json",
-        ):
-            logger.info(f"Extracted {len(page)} circuits")
-
-            for circuit in page:
-                circuit["date_extracted_at"] = datetime.now().isoformat()
-                yield circuit
-
-    @dlt.resource(
-        name="status",
-        primary_key="statusId",
-        write_disposition="merge",
-    )
+    @dlt.resource(name="status", primary_key="statusId", write_disposition="merge")
     def status():
-        """
-        Resource for F1 status.
-        """
-        logger = dagster.get_dagster_logger()
-        logger.info("Processing F1 status")
-
-        # Create a REST client with the correct paginator
-        client = RESTClient(
-            base_url=base_url,
-            paginator=OffsetPaginator(
-                limit=100,
-                offset=0,
-                total_path="MRData.total",
-            ),
-            data_selector="MRData.StatusTable.Status",
-        )
-
-        # Make the request with pagination
-        for page in client.paginate(
-            "/status.json",
-        ):
-            logger.info(f"Extracted {len(page)} status entries")
-
-            for status in page:
-                status["date_extracted_at"] = datetime.now().isoformat()
-                yield status
+        log = dagster.get_dagster_logger()
+        client = _make_client(base_url, "MRData.StatusTable.Status")
+        for page in _fetch_pages(client, "/status.json"):
+            log.info(f"Extracted {len(page)} status entries")
+            for row in page:
+                row["date_extracted_at"] = datetime.now().isoformat()
+                yield row
 
     @dlt.resource(
-        name="drivers",
-        primary_key=["driverId", "year"],
-        write_disposition="merge",
+        name="drivers", primary_key=["driverId", "year"], write_disposition="merge"
     )
     def drivers(year: Optional[int] = None):
-        """
-        Resource for F1 drivers.
-        """
-        logger = dagster.get_dagster_logger()
+        log = dagster.get_dagster_logger()
         years_to_process = [year] if year is not None else years
-
-        logger.info(f"Processing F1 drivers for years: {years_to_process}")
-        for year in years_to_process:
-            logger.info(f"Processing F1 drivers for year: {year}")
-
-            # Create a REST client with the correct paginator
-            client = RESTClient(
-                base_url=base_url,
-                paginator=OffsetPaginator(
-                    limit=100,
-                    offset=0,
-                    total_path="MRData.total",
-                ),
-                data_selector="MRData.DriverTable.Drivers",
-            )
-
-            # Make the request with pagination
-            for page in client.paginate(
-                f"{year}/drivers.json",
-            ):
-                logger.info(f"Extracted {len(page)} drivers for year {year}")
-
-                for driver in page:
-                    driver["year"] = year
-                    driver["date_extracted_at"] = datetime.now().isoformat()
-                    yield driver
-            time.sleep(30)  # Respect API rate limits
+        for yr in years_to_process:
+            log.info(f"Processing drivers for {yr}")
+            client = _make_client(base_url, "MRData.DriverTable.Drivers")
+            for page in _fetch_pages(client, f"{yr}/drivers.json"):
+                for row in page:
+                    row["year"] = yr
+                    row["date_extracted_at"] = datetime.now().isoformat()
+                    yield row
+            _rate_limiter.acquire()
 
     @dlt.resource(
         name="constructors",
@@ -167,122 +137,54 @@ def f1_api_source(
         write_disposition="merge",
     )
     def constructors(year: Optional[int] = None):
-        """
-        Resource for F1 constructors.
-        """
+        log = dagster.get_dagster_logger()
         years_to_process = [year] if year is not None else years
-        logger = dagster.get_dagster_logger()
-        logger.info(f"Processing F1 constructors for years: {years_to_process}")
-        for year in years_to_process:
-            logger.info(f"Processing F1 constructors for year: {year}")
-
-            # Create a REST client with the correct paginator
-            client = RESTClient(
-                base_url=base_url,
-                paginator=OffsetPaginator(
-                    limit=100,
-                    offset=0,
-                    total_path="MRData.total",
-                ),
-                data_selector="MRData.ConstructorTable.Constructors",
-            )
-
-            # Make the request with pagination
-            for page in client.paginate(
-                f"{year}/constructors.json",
-            ):
-                logger.info(f"Extracted {len(page)} constructors for year {year}")
-
-                for constructor in page:
-                    constructor["year"] = year
-                    constructor["date_extracted_at"] = datetime.now().isoformat()
-                    yield constructor
-            time.sleep(30)  # Respect API rate limits
+        for yr in years_to_process:
+            log.info(f"Processing constructors for {yr}")
+            client = _make_client(base_url, "MRData.ConstructorTable.Constructors")
+            for page in _fetch_pages(client, f"{yr}/constructors.json"):
+                for row in page:
+                    row["year"] = yr
+                    row["date_extracted_at"] = datetime.now().isoformat()
+                    yield row
+            _rate_limiter.acquire()
 
     @dlt.resource(
-        name="races",
-        primary_key=["season", "round"],
-        write_disposition="merge",
+        name="races", primary_key=["season", "round"], write_disposition="merge"
     )
     def races(year: Optional[int] = None):
-        """
-        Resource for races.
-        """
+        log = dagster.get_dagster_logger()
         years_to_process = [year] if year is not None else years
-        logger = dagster.get_dagster_logger()
-        logger.info(f"Processing F1 races for years: {years_to_process}")
-        for year in years_to_process:
-            logger.info(f"Processing races for {year}")
-            # Create a REST client with the correct paginator
-            client = RESTClient(
-                base_url=base_url,
-                paginator=OffsetPaginator(
-                    limit=100,
-                    offset=0,
-                    total_path="MRData.total",
-                ),
-                data_selector="MRData.RaceTable.Races",
-            )
-            # Make the request with pagination
-            for page in client.paginate(
-                f"{year}/races.json",
-            ):
-                logger.info(f"Extracted {len(page)} pages for year {year}")
-
-                for race in page:
-                    race["date_extracted_at"] = datetime.now().isoformat()
-                    yield race
-            time.sleep(30)
+        for yr in years_to_process:
+            log.info(f"Processing races for {yr}")
+            client = _make_client(base_url, "MRData.RaceTable.Races")
+            for page in _fetch_pages(client, f"{yr}/races.json"):
+                for row in page:
+                    row["date_extracted_at"] = datetime.now().isoformat()
+                    yield row
+            _rate_limiter.acquire()
 
     @dlt.resource(
         name="results",
-        primary_key=[
-            "season",
-            "round",
-            "number",
-            "constructor__constructor_id",
-        ],
+        primary_key=["season", "round", "number", "constructor__constructor_id"],
         write_disposition="merge",
     )
     def results(year: Optional[int] = None):
-        """Resource for Results"""
+        log = dagster.get_dagster_logger()
         years_to_process = [year] if year is not None else years
-        logger = dagster.get_dagster_logger()
-
-        logger.info(f"Processing F1 results for years: {years_to_process}")
-        for year in years_to_process:
-            logger.info(f"Processing results for {year}")
-
-            # Create a REST client with the correct paginator
-            client = RESTClient(
-                base_url=base_url,
-                paginator=OffsetPaginator(
-                    limit=100,
-                    offset=0,
-                    total_path="MRData.total",
-                ),
-                data_selector="MRData.RaceTable.Races",
-            )
-            #        # Make the request with pagination
-            for page in client.paginate(
-                f"{year}/results",
-            ):
-                logger.info(f"Extracted {len(page)} results for year {year}")
-                if len(page) == 0:
-                    logger.warning(f"No Results data found for year {year}")
-                    continue
-                if "Results" in page[0]:
-                    logger.info(
-                        f"Processing results for season {page[0]['season']} and round {page[0]['round']}"
-                    )
-
-                    for result in page[0]["Results"]:
-                        result["season"] = page[0]["season"]
-                        result["round"] = page[0]["round"]
-
-                        result["date_extracted_at"] = datetime.now().isoformat()
-                        yield result
-                time.sleep(30)
+        for yr in years_to_process:
+            log.info(f"Processing results for {yr}")
+            client = _make_client(base_url, "MRData.RaceTable.Races")
+            for page in _fetch_pages(client, f"{yr}/results"):
+                for race in page:
+                    if not race or "Results" not in race:
+                        continue
+                    for row in race["Results"]:
+                        row["season"] = race["season"]
+                        row["round"] = race["round"]
+                        row["date_extracted_at"] = datetime.now().isoformat()
+                        yield row
+                _rate_limiter.acquire()
 
     @dlt.resource(
         name="driver_standings",
@@ -290,41 +192,28 @@ def f1_api_source(
         write_disposition="merge",
     )
     def driver_standings(year: Optional[int] = None):
-        """
-        Resource for Driver Standings.
-        """
+        log = dagster.get_dagster_logger()
         years_to_process = [year] if year is not None else years
-        logger = dagster.get_dagster_logger()
-        logger.info(f"Processing F1 driver standings for years: {years_to_process}")
-        for year in years_to_process:
-            logger.info(f"Processing driver standings for {year}")
-
-            # Create a REST client with the correct paginator
-            client = RESTClient(
-                base_url=base_url,
-                paginator=OffsetPaginator(
-                    limit=100,
-                    offset=0,
-                    total_path="MRData.total",
-                ),
-                data_selector="MRData.StandingsTable.StandingsLists",
-            )
-
-            # Make the request with pagination
-            for page in client.paginate(
-                f"{year}/driverStandings",
-            ):
-                logger.info(f"Extracted {len(page)} driver standings for year {year}")
-                if len(page) == 0:
-                    logger.warning(f"No Driver standings data found for year {year}")
-                    continue
-                if "DriverStandings" in page[0]:
-                    for standing in page[0]["DriverStandings"]:
-                        standing["season"] = page[0]["season"]
-                        standing["round"] = page[0]["round"]
-                        standing["date_extracted_at"] = datetime.now().isoformat()
-                        yield standing
-            time.sleep(30)  # Respect API rate limits
+        for yr in years_to_process:
+            log.info(f"Processing driver standings for {yr}")
+            client = _make_client(base_url, "MRData.StandingsTable.StandingsLists")
+            seen: set = set()
+            for page in _fetch_pages(client, f"{yr}/driverStandings"):
+                for standings_list in page:
+                    if not standings_list or "DriverStandings" not in standings_list:
+                        continue
+                    season = standings_list["season"]
+                    round_ = standings_list["round"]
+                    for row in standings_list["DriverStandings"]:
+                        key = (season, round_, row.get("Driver", {}).get("driverId", ""))
+                        if key in seen:
+                            continue
+                        seen.add(key)
+                        row["season"] = season
+                        row["round"] = round_
+                        row["date_extracted_at"] = datetime.now().isoformat()
+                        yield row
+            _rate_limiter.acquire()
 
     @dlt.resource(
         name="constructor_standings",
@@ -332,48 +221,28 @@ def f1_api_source(
         write_disposition="merge",
     )
     def constructor_standings(year: Optional[int] = None):
-        """
-        Resource for Constructor Standings.
-        """
+        log = dagster.get_dagster_logger()
         years_to_process = [year] if year is not None else years
-        logger = dagster.get_dagster_logger()
-        logger.info(
-            f"Processing F1 constructor standings for years: {years_to_process}"
-        )
-        for year in years_to_process:
-            logger.info(f"Processing constructor standings for {year}")
-
-            # Create a REST client with the correct paginator
-            client = RESTClient(
-                base_url=base_url,
-                paginator=OffsetPaginator(
-                    limit=100,
-                    offset=0,
-                    total_path="MRData.total",
-                ),
-                data_selector="MRData.StandingsTable.StandingsLists",
-            )
-
-            # Make the request with pagination
-            for page in client.paginate(
-                f"{year}/constructorStandings",
-            ):
-                logger.info(
-                    f"Extracted {len(page)} constructor standings for year {year}"
-                )
-
-                if len(page) == 0:
-                    logger.warning(
-                        f"No constructor standings data found for year {year}"
-                    )
-                    continue
-                if "ConstructorStandings" in page[0]:
-                    for standing in page[0]["ConstructorStandings"]:
-                        standing["season"] = page[0]["season"]
-                        standing["round"] = page[0]["round"]
-                        standing["date_extracted_at"] = datetime.now().isoformat()
-                        yield standing
-            time.sleep(30)
+        for yr in years_to_process:
+            log.info(f"Processing constructor standings for {yr}")
+            client = _make_client(base_url, "MRData.StandingsTable.StandingsLists")
+            seen: set = set()
+            for page in _fetch_pages(client, f"{yr}/constructorStandings"):
+                for standings_list in page:
+                    if not standings_list or "ConstructorStandings" not in standings_list:
+                        continue
+                    season = standings_list["season"]
+                    round_ = standings_list["round"]
+                    for row in standings_list["ConstructorStandings"]:
+                        key = (season, round_, row.get("Constructor", {}).get("constructorId", ""))
+                        if key in seen:
+                            continue
+                        seen.add(key)
+                        row["season"] = season
+                        row["round"] = round_
+                        row["date_extracted_at"] = datetime.now().isoformat()
+                        yield row
+            _rate_limiter.acquire()
 
     @dlt.resource(
         name="laps",
@@ -381,51 +250,29 @@ def f1_api_source(
         write_disposition="merge",
     )
     def laps(year: Optional[int] = None, rounds_override: Optional[List[int]] = None):
-        """
-        Resource for Laps.
-        """
+        log = dagster.get_dagster_logger()
         years_to_process = [year] if year is not None else years
-        logger = dagster.get_dagster_logger()
-        logger.info(f"Processing F1 laps for years: {years_to_process}")
-        logger.info(f"Rounds to process: {rounds}")
-        rounds_to_use = rounds_override if rounds_override is not None else rounds
-        # If still no rounds specified, default to getting all rounds
-        if rounds_to_use is None:
-            logger.info(
-                "No rounds specified, will fetch all available rounds for each year"
-            )
-            rounds_to_use = []  # Will be populated per year
-        logger.info(f"Processing F1 laps for rounds: {rounds_to_use}")
-        for year in years_to_process:
-            logger.info(f"Processing laps for {year}")
+        rounds_to_use = rounds_override if rounds_override is not None else (rounds or [])
 
-            # Create a REST client with the correct paginator
-            client = RESTClient(
-                base_url=base_url,
-                paginator=OffsetPaginator(
-                    limit=100,
-                    offset=0,
-                    total_path="MRData.total",
-                ),
-                data_selector="MRData.RaceTable.Races",
-            )
-            for round in rounds_to_use:
-                # Make the request with pagination
-                logger.info(f"Processing laps for year {year}, round {round}")
-                for page in client.paginate(
-                    f"{year}/{round}/laps.json",
-                ):
+        for yr in years_to_process:
+            if not rounds_to_use:
+                log.warning(f"No rounds specified for laps in {yr}, skipping")
+                continue
 
-                    if len(page) == 0:
-                        logger.warning(f"No laps data found for year {year}")
-                        continue
-                    if "Laps" in page[0]:
-                        for lap in page[0]["Laps"]:
-                            lap["season"] = page[0]["season"]
-                            lap["round"] = page[0]["round"]
-                            lap["date_extracted_at"] = datetime.now().isoformat()
-                            yield lap
-                time.sleep(30)  # Respect API rate limits
+            log.info(f"Fetching laps for {yr}, {len(rounds_to_use)} rounds in parallel")
+            with ThreadPoolExecutor(max_workers=_MAX_WORKERS) as pool:
+                futures = {
+                    pool.submit(_fetch_round_laps, base_url, yr, r): r
+                    for r in rounds_to_use
+                }
+                for future in as_completed(futures):
+                    round_num = futures[future]
+                    try:
+                        for row in future.result():
+                            yield row
+                        log.info(f"Completed laps for {yr} round {round_num}")
+                    except Exception as e:
+                        log.error(f"Error fetching laps for {yr} round {round_num}: {e}")
 
     @dlt.resource(
         name="qualifying",
@@ -433,40 +280,21 @@ def f1_api_source(
         write_disposition="merge",
     )
     def qualifying(year: Optional[int] = None):
-        """
-        Resource for Qualifying.
-        """
+        log = dagster.get_dagster_logger()
         years_to_process = [year] if year is not None else years
-        logger = dagster.get_dagster_logger()
-        logger.info(f"Processing F1 qualifying for years: {years_to_process}")
-        for year in years_to_process:
-            logger.info(f"Processing qualifying for {year}")
-
-            # Create a REST client with the correct paginator
-            client = RESTClient(
-                base_url=base_url,
-                paginator=OffsetPaginator(
-                    limit=100,
-                    offset=0,
-                    total_path="MRData.total",
-                ),
-                data_selector="MRData.RaceTable.Races",
-            )
-            # Make the request with pagination
-            for page in client.paginate(
-                f"{year}/qualifying",
-            ):
-                logger.info(f"Extracted {len(page)} qualifying for year {year}")
-                if len(page) == 0:
-                    logger.warning(f"No qualifying data found for year {year}")
-                    continue
-                if "QualifyingResults" in page[0]:
-                    for qualifying in page[0]["QualifyingResults"]:
-                        qualifying["season"] = page[0]["season"]
-                        qualifying["round"] = page[0]["round"]
-                        qualifying["date_extracted_at"] = datetime.now().isoformat()
-                        yield qualifying
-            time.sleep(30)  # Respect API rate limits
+        for yr in years_to_process:
+            log.info(f"Processing qualifying for {yr}")
+            client = _make_client(base_url, "MRData.RaceTable.Races")
+            for page in _fetch_pages(client, f"{yr}/qualifying"):
+                for race in page:
+                    if not race or "QualifyingResults" not in race:
+                        continue
+                    for row in race["QualifyingResults"]:
+                        row["season"] = race["season"]
+                        row["round"] = race["round"]
+                        row["date_extracted_at"] = datetime.now().isoformat()
+                        yield row
+            _rate_limiter.acquire()
 
     return (
         seasons,

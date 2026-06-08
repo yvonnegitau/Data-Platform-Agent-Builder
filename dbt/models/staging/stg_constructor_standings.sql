@@ -2,7 +2,7 @@
     config(
         indexes=[
             {
-                "columns":['season', 'constructor_id'], 'type': 'btree'
+                "columns":['season', 'constructor_id']
             }
         ]
     )
@@ -10,7 +10,7 @@
 with source_data as (
     select
         -- Primary Keys
-        season::int,
+        season::int as season,
         "constructor__constructor_id" as constructor_id ,
         "constructor__name" as constructor_name,
         "constructor__url" as constructor_url,

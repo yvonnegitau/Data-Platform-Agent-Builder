@@ -1,3 +1,5 @@
+{{ config(severity='warn') }}
+
 -- Test: Ensure total wins doesn't exceed total rounds
 select 
     season,

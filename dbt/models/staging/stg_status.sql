@@ -1,6 +1,6 @@
 {{ config(
     indexes=[
-        {'columns': ['status_id'], 'type': 'btree', 'unique': true}
+        {'columns': ['status_id'], 'unique': true}
     ]
 )}}
 

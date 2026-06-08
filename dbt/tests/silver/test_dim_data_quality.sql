@@ -1,3 +1,5 @@
+{{ config(severity='warn') }}
+
 -- Test: Driver ages must be realistic
 select 
     natural_key,

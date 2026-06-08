@@ -1,8 +1,8 @@
 {{
         config(
             indexes=[
-                {"columns":['season','round'], 'type': 'btree'},
-                {"columns": ['circuit_id'], 'type':'btree'}
+                {"columns":['season','round']},
+                {"columns": ['circuit_id']}
             ])
     }}
 

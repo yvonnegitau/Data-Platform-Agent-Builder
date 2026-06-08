@@ -198,4 +198,4 @@ select
     true as is_current,  -- Always true since we rebuild
     1 as row_version     -- Always 1 since we rebuild
 
-from postgres_bronze.f1_bronze_staging.stg_circuits
+from {{ ref('stg_circuits') }}

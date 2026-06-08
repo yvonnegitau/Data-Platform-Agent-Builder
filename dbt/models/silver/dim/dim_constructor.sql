@@ -4,14 +4,37 @@
     order_by=['season', 'natural_key'] 
 )}}
 
--- Get constructor base data
-with constructor_base as (
-    select * from postgres_bronze.f1_bronze_staging.stg_constructors
+-- All constructor+season combinations that appear in race results (source of truth)
+with results_constructors as (
+    select distinct constructor_id, season
+    from {{ ref('stg_results') }}
+    where constructor_id is not null
+),
+
+-- Constructor attributes (best available per season, then any season as fallback)
+constructor_attrs as (
+    select constructor_id, season, constructor_name, constructor_url, nationality, extracted_at, processed_at
+    from {{ ref('stg_constructors') }}
+),
+
+-- Base: every constructor+season from results, enriched with attributes where available
+constructor_base as (
+    select
+        rc.constructor_id,
+        rc.season,
+        coalesce(ca.constructor_name, rc.constructor_id) as constructor_name,
+        ca.constructor_url,
+        coalesce(ca.nationality, 'Unknown')              as nationality,
+        ca.extracted_at,
+        ca.processed_at
+    from results_constructors rc
+    left join constructor_attrs ca
+        on rc.constructor_id = ca.constructor_id and rc.season = ca.season
 ),
 
 -- Get the constructor standings to get the points
 standings_base as (
-    select * from postgres_bronze.f1_bronze_staging.stg_constructor_standings
+    select * from {{ ref('stg_constructor_standings') }}
     where data_quality = 'VALID'
 ),
 
@@ -102,39 +125,42 @@ cumulative_constructor_stats as (
 -- Final dimension with business logic
 final_dim as (
     select
-        {{ dbt_utils.generate_surrogate_key(['cb.constructor_id', 'ccs.season']) }} as dim_constructor_key,
+        {{ dbt_utils.generate_surrogate_key(['cb.constructor_id', 'cb.season']) }} as dim_constructor_key,
         cb.constructor_id as natural_key,
-        ccs.season,
+        cb.season,
         cb.constructor_name,
         cb.constructor_url,
         cb.nationality,
         
         -- Current season performance
         ccs.position as current_season_position,
-        ccs.points as current_season_points,
-        ccs.total_wins as current_season_wins,
-        ccs.total_rounds as current_season_rounds,
-        
+        coalesce(ccs.points, 0) as current_season_points,
+        coalesce(ccs.total_wins, 0) as current_season_wins,
+        coalesce(ccs.total_rounds, 0) as current_season_rounds,
+
         -- Historical performance before this season
         coalesce(ccs.points_before_season, 0) as career_points_before_season,
         coalesce(ccs.total_wins_before_season, 0) as career_wins_before_season,
         coalesce(ccs.total_races_before_season, 0) as career_races_before_season,
         coalesce(ccs.total_seasons_competed_before_season, 0) as seasons_competed_before,
-        
+
         -- Previous season comparison
         ccs.previous_season_position,
         ccs.previous_season_points,
-        case 
-            when ccs.previous_season_position is not null 
-            then ccs.previous_season_position - ccs.position 
-            else null 
+        case
+            when ccs.previous_season_position is not null
+            then ccs.previous_season_position - ccs.position
+            else null
         end as position_improvement_from_previous,
-        
-        -- Career milestones
+
+        -- Career milestones (fall back to counting from results when no standings data)
         ccs.debut_season,
-        ccs.total_seasons_active,
-        case when ccs.debut_season = ccs.season then true else false end as is_debut_season,
-        ccs.season - ccs.debut_season as seasons_since_debut,
+        coalesce(
+            ccs.total_seasons_active,
+            count(*) over (partition by cb.constructor_id order by cb.season rows between unbounded preceding and current row)
+        ) as total_seasons_active,
+        case when ccs.debut_season = cb.season then true else false end as is_debut_season,
+        case when ccs.debut_season is not null then cb.season - ccs.debut_season else null end as seasons_since_debut,
         
         -- Performance averages
         case 
@@ -188,7 +214,7 @@ final_dim as (
         1 as row_version
 
     from constructor_base cb
-    inner join cumulative_constructor_stats ccs 
+    left join cumulative_constructor_stats ccs
         on cb.constructor_id = ccs.constructor_id and cb.season = ccs.season
 )
 

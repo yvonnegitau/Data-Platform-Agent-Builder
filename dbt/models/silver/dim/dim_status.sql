@@ -6,7 +6,7 @@
 
 -- Simple status dimension with business categorization
 with status_base as (
-    select * from postgres_bronze.f1_bronze_staging.stg_status
+    select * from {{ ref('stg_status') }}
     where data_quality = 'VALID'
 ),
 

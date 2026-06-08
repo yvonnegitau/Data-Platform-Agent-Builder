@@ -1,7 +1,7 @@
 {{
     config(
         indexes = [
-            { "columns": ['season', 'driver_id'], 'type': 'btree'}
+            { "columns": ['season', 'driver_id']}
         ]
     )
 }}

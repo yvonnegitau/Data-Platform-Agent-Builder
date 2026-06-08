@@ -21,7 +21,7 @@ with career_stats as (
     avg(coalesce(grid_position, 0)) as avg_grid_position,
     min(grid_position) as best_grid_position
 
-    from postgres_bronze.f1_bronze_staging.stg_results
+    from {{ ref('stg_results') }}
     where data_quality = 'VALID'
     group by driver_id, season
 ),
@@ -40,7 +40,7 @@ cummulative_career_stats as (
     from career_stats
 ),
 driver_base as (
-    select * from postgres_bronze.f1_bronze_staging.stg_drivers
+    select * from {{ ref('stg_drivers') }}
 )
 
 select

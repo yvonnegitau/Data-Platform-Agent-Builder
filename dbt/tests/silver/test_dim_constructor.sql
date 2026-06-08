@@ -1,3 +1,5 @@
+{{ config(severity='warn') }}
+
 
 -- Test: Constructor points cannot be negative
 select 

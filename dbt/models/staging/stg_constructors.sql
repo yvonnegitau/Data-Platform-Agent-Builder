@@ -2,7 +2,7 @@
     config(
         indexes=[
             {
-                "columns":['season', 'constructor_id'], 'type': 'btree'
+                "columns":['season', 'constructor_id']
             }
         ]
     )

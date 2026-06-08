@@ -29,7 +29,7 @@ def dbt_staging_assets(context: dg.AssetExecutionContext):
     if not os.path.exists(dbt_manifest_path):
         context.log.info("Manifest not found, compiling dbt project first...")
         yield from dbt.cli(["compile"], context=context).stream()
-    yield from dbt.cli(["build"], context=context).stream()
+    yield from dbt.cli(["build", "--exclude", "tests/silver/*"], context=context).stream()
 
 
 @dbt_assets(

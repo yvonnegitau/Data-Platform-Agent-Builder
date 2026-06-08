@@ -6,7 +6,7 @@
 
 -- Get race base data
 with race_base as (
-    select * from postgres_bronze.f1_bronze_staging.stg_races
+    select * from {{ ref('stg_races') }}
     where data_quality = 'VALID'
 ),
 

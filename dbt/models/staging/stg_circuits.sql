@@ -1,7 +1,7 @@
 {{
     config(
         indexes=[
-            {'columns': ['circuit_id'], 'type': 'btree', 'unique':true}
+            {'columns': ['circuit_id'], 'unique':true}
         ]
     )
 }}

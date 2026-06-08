@@ -6,7 +6,7 @@
 }}
 -- Get the base race results
 with base_results as (
-    select * from postgres_bronze.f1_bronze_staging.stg_results
+    select * from {{ ref('stg_results') }}
     where data_quality = 'VALID'
 ),
 
@@ -46,10 +46,10 @@ base_foundtation as (
 
         from base_results br
         inner join races_base r on br.season = r.season and br.round = r.round
-        inner join constructors_base c on br.constructor_id = c.natural_key and br.season = c.season
-        inner join drivers_base d on br.driver_id = d.natural_key and br.season = d.season
-        inner join status_base s on s.status_description = br.race_status
-        inner join circuits_base ci on r.circuit_id = ci.natural_key
+        left join constructors_base c on br.constructor_id = c.natural_key and br.season = c.season
+        left join drivers_base d on br.driver_id = d.natural_key and br.season = d.season
+        left join status_base s on s.status_description = br.race_status
+        left join circuits_base ci on r.circuit_id = ci.natural_key
 
 ),
 performance_flags as(

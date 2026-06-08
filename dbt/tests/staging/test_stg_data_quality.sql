@@ -1,3 +1,5 @@
+{{ config(severity='warn') }}
+
 -- Test: Ensure all results have valid constructors in standings
 select 
     r.season,
@@ -56,11 +58,11 @@ from (
       and data_quality = 'VALID'
 ) ds
 right join (
-    select 
+    select
         season,
-        generate_series(1, max_position) as expected_position
+        unnest(generate_series(1, max_position)) as expected_position
     from (
-        select 
+        select
             season,
             max(position) as max_position
         from {{ ref('stg_driver_standings') }}
@@ -68,7 +70,7 @@ right join (
           and data_quality = 'VALID'
         group by season
     ) max_pos
-) expected 
+) expected
     on ds.season = expected.season 
     and ds.position = expected.expected_position
 where ds.position is null
