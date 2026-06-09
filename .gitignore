@@ -52,8 +52,7 @@ data/
 *.duckdb
 *.duckdb.wal
 
-# Docker
-.dockerignore
+# Docker (note: .dockerignore is intentionally tracked)
 
 # Jupyter Notebooks
 .ipynb_checkpoints

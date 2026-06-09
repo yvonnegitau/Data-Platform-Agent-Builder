@@ -43,6 +43,13 @@ from tools.data_products import (
     get_constructor_history,
     get_circuit_stats,
 )
+from tools.metadata import (
+    get_data_freshness,
+    get_data_coverage,
+    get_season_completeness,
+    get_coverage_chart_data,
+    get_persona,
+)
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("f1-mcp")
@@ -274,6 +281,67 @@ TOOLS: dict[str, tuple] = {
                 },
             },
             "required": ["circuit_name"],
+        },
+    ),
+
+    # ── Warehouse / coverage tools ─────────────────────────────────────────
+    "get_data_freshness": (
+        get_data_freshness,
+        "Returns a snapshot of data freshness: latest season loaded, latest race, "
+        "total races in the database, and the earliest season available. "
+        "Call this when asked 'how current is the data?' or 'when was it last updated?'",
+        {"type": "object", "properties": {}},
+    ),
+
+    "get_data_coverage": (
+        get_data_coverage,
+        "Returns row counts and season ranges for every table in the silver layer. "
+        "Shows which tables exist, how many rows they have, and what date range they cover. "
+        "Use this for a full warehouse health overview.",
+        {"type": "object", "properties": {}},
+    ),
+
+    "get_season_completeness": (
+        get_season_completeness,
+        "Shows how complete each season's data is — rounds loaded versus the total "
+        "rounds in the race schedule. Returns pct_complete and a status flag "
+        "(Complete / Partial / Minimal / Missing). "
+        "Pass a season year to check one season. Leave empty for all seasons. "
+        "Use this to answer: 'Do we have all races for 2023?' or 'Which seasons have gaps?'",
+        {
+            "type": "object",
+            "properties": {
+                "season": {
+                    "type": "integer",
+                    "description": "Season year to check. Omit for all seasons.",
+                }
+            },
+        },
+    ),
+
+    "get_coverage_chart_data": (
+        get_coverage_chart_data,
+        "Returns data structured for chart generation: by_season (rounds loaded vs. schedule "
+        "per year), by_table (row counts per silver table), and a summary of headline numbers. "
+        "Call this when asked to 'show a dashboard', 'chart the coverage', or 'visualise the data'. "
+        "After calling, generate an HTML Chart.js artifact from the returned data.",
+        {"type": "object", "properties": {}},
+    ),
+
+    "get_persona": (
+        get_persona,
+        "Returns the system prompt for a named persona. "
+        "Available: 'fan', 'journalist', 'content_creator', 'warehouse_assistant'.",
+        {
+            "type": "object",
+            "properties": {
+                "persona": {
+                    "type": "string",
+                    "description": "Persona name.",
+                    "enum": ["fan", "journalist", "content_creator", "warehouse_assistant"],
+                }
+            },
+            "required": ["persona"],
         },
     ),
 }

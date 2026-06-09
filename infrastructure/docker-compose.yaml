@@ -109,10 +109,48 @@ services:
       timeout: 5s
       retries: 5
 
+  # ── Open WebUI — self-hosted chat interface ──────────────────────────────
+  open-webui:
+    image: ghcr.io/open-webui/open-webui:main
+    container_name: open_webui
+    ports:
+      - "3000:8080"
+    environment:
+      # Point at locally-running Ollama on the Mac host
+      - OLLAMA_BASE_URL=http://host.docker.internal:11434
+      - WEBUI_SECRET_KEY=local-dev-only-change-in-production
+    extra_hosts:
+      # Needed on Linux hosts; harmless on macOS Docker Desktop
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - open_webui_data:/app/backend/data
+    networks:
+      - data_platform
+    restart: unless-stopped
+
+  # ── mcpo — MCP → OpenAI-compatible HTTP bridge ───────────────────────────
+  # Wraps the MCP server so Open WebUI can call our tools as an OpenAI Tool Server
+  mcpo:
+    build:
+      context: ..
+      dockerfile: infrastructure/mcpo.Dockerfile
+    container_name: mcpo
+    ports:
+      - "8000:8000"
+    environment:
+      - F1_DB_PATH=/data/medallion/f1_data.duckdb
+    volumes:
+      - ${HOME}/data/f1:/data
+    networks:
+      - data_platform
+    restart: unless-stopped
+
 volumes:
   postgres_data:
     driver: local
   dagster_storage:
+    driver: local
+  open_webui_data:
     driver: local
 
 networks:

@@ -1,5 +1,6 @@
 from datetime import datetime
 from ingestion import f1_assets
+from ingestion import coverage_assets
 import dbt_assets as asset
 from dagster import (
     Definitions,
@@ -14,7 +15,7 @@ from dagster import (
 )
 from dagster_dbt import DbtCliResource
 
-all_assets = load_assets_from_modules([f1_assets, asset])
+all_assets = load_assets_from_modules([f1_assets, asset, coverage_assets])
 current_year = datetime.now().year
 
 
@@ -72,6 +73,12 @@ f1_dbt_silver_job = define_asset_job(
     description="DBT silver assets for F1 bronze data",
 )
 
+coverage_refresh_job = define_asset_job(
+    "coverage_refresh_job",
+    selection=AssetSelection.groups("warehouse_coverage"),
+    description="Daily snapshot of data warehouse coverage metrics into DuckDB",
+)
+
 
 @dg.schedule(
     cron_schedule="0 7 * 3-12 1",
@@ -114,6 +121,17 @@ def yearly_schedule(context):
 
 
 @dg.schedule(
+    cron_schedule="0 6 * * *",
+    job=coverage_refresh_job,
+    default_status=DefaultScheduleStatus.RUNNING,
+)  # Every day at 06:00 — runs after weekly ingestion jobs
+def daily_coverage_refresh_schedule(context):
+    return dg.RunRequest(
+        tags={"schedule": "daily_coverage_refresh"},
+    )
+
+
+@dg.schedule(
     cron_schedule="0 1 1 3 *",
     job=f1_static_job,
     default_status=DefaultScheduleStatus.RUNNING,
@@ -141,6 +159,7 @@ defs = Definitions(
         f1_yearly_job,
         f1_dbt_staging_job,
         f1_dbt_silver_job,
+        coverage_refresh_job,
     ],
     resources={
         "dlt": DagsterDltResource(),
@@ -153,5 +172,6 @@ defs = Definitions(
         yearly_schedule,
         static_yearly_schedule,
         weekly_yearly_schedule,
+        daily_coverage_refresh_schedule,
     ],
 )

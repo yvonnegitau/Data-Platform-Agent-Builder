@@ -1,0 +1,20 @@
+# macOS metadata files
+._*
+.DS_Store
+**/.DS_Store
+**/._.DS_Store
+
+# Python
+**/__pycache__
+**/*.pyc
+**/*.pyo
+**/.pytest_cache
+mcp_server/.venv
+
+# Git
+.git
+.gitignore
+
+# Local dev
+proposal/
+.claude/
