@@ -1,0 +1,48 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="600" viewBox="0 0 1000 600" font-family="Arial, sans-serif">
+  <rect width="1000" height="600" fill="#ffffff"/>
+  <text x="500" y="44" text-anchor="middle" font-size="26" font-weight="bold" fill="#1a2330">Local AI: Individual Setup</text>
+  <text x="500" y="72" text-anchor="middle" font-size="15" fill="#5f6b7a">One machine. Nothing leaves it.</text>
+
+  <!-- machine boundary -->
+  <rect x="60" y="100" width="880" height="430" rx="14" fill="#f5f7fa" stroke="#9fb3c8" stroke-width="2" stroke-dasharray="8 6"/>
+  <text x="84" y="128" font-size="15" font-weight="bold" fill="#486581">Your laptop / workstation (16–32 GB)</text>
+
+  <!-- user -->
+  <rect x="110" y="270" width="150" height="80" rx="10" fill="#e6f1fb" stroke="#378add" stroke-width="2"/>
+  <text x="185" y="305" text-anchor="middle" font-size="16" font-weight="bold" fill="#0c447c">You</text>
+  <text x="185" y="328" text-anchor="middle" font-size="13" fill="#185fa5">browser</text>
+
+  <!-- Open WebUI -->
+  <rect x="330" y="255" width="180" height="110" rx="10" fill="#eeedfe" stroke="#534ab7" stroke-width="2"/>
+  <text x="420" y="295" text-anchor="middle" font-size="16" font-weight="bold" fill="#3c3489">Open WebUI</text>
+  <text x="420" y="318" text-anchor="middle" font-size="13" fill="#534ab7">chat interface</text>
+  <text x="420" y="338" text-anchor="middle" font-size="13" fill="#534ab7">(the harness)</text>
+
+  <!-- Ollama / model -->
+  <rect x="580" y="150" width="200" height="120" rx="10" fill="#e1f5ee" stroke="#0f6e56" stroke-width="2"/>
+  <text x="680" y="190" text-anchor="middle" font-size="16" font-weight="bold" fill="#085041">Ollama</text>
+  <text x="680" y="213" text-anchor="middle" font-size="13" fill="#0f6e56">local model</text>
+  <text x="680" y="233" text-anchor="middle" font-size="13" fill="#0f6e56">7B–14B</text>
+  <text x="680" y="253" text-anchor="middle" font-size="12" fill="#1d9e75">native function calling</text>
+
+  <!-- tools + data -->
+  <rect x="580" y="350" width="200" height="120" rx="10" fill="#faeeda" stroke="#854f0b" stroke-width="2"/>
+  <text x="680" y="388" text-anchor="middle" font-size="16" font-weight="bold" fill="#633806">Tools + data</text>
+  <text x="680" y="411" text-anchor="middle" font-size="13" fill="#854f0b">MCP tools (optional)</text>
+  <text x="680" y="431" text-anchor="middle" font-size="13" fill="#854f0b">local files / DuckDB</text>
+  <text x="680" y="451" text-anchor="middle" font-size="13" fill="#854f0b">semantic layer</text>
+
+  <!-- arrows -->
+  <defs>
+    <marker id="arr" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L8,3 L0,6 Z" fill="#5f6b7a"/>
+    </marker>
+  </defs>
+  <line x1="260" y1="310" x2="326" y2="310" stroke="#5f6b7a" stroke-width="2" marker-end="url(#arr)"/>
+  <line x1="510" y1="300" x2="576" y2="225" stroke="#5f6b7a" stroke-width="2" marker-end="url(#arr)"/>
+  <text x="540" y="250" font-size="12" fill="#5f6b7a">calls model</text>
+  <line x1="510" y1="325" x2="576" y2="400" stroke="#5f6b7a" stroke-width="2" marker-end="url(#arr)"/>
+  <text x="528" y="385" font-size="12" fill="#5f6b7a">calls tools</text>
+
+  <text x="500" y="510" text-anchor="middle" font-size="13" fill="#486581">All open source · runs offline · no data or prompt leaves the machine</text>
+</svg>

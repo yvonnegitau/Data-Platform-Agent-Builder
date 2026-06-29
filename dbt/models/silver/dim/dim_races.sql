@@ -32,8 +32,8 @@ race_sequence_stats as (
         
         -- Season progression
         round(
-            (row_number() over (partition by season order by round)::float / 
-             count(*) over (partition by season)) * 100, 1
+            ((row_number() over (partition by season order by round)::float /
+             count(*) over (partition by season)) * 100)::numeric, 1
         ) as season_completion_percentage,
         
         -- Previous/next race timing

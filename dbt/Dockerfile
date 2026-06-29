@@ -3,7 +3,7 @@ FROM python:3.10-slim
 WORKDIR /usr/app
 
 # Install dbt and related packages
-RUN pip install --no-cache-dir dbt-postgres==1.5.3 dbt-duckdb==1.5.2
+RUN pip install --no-cache-dir dbt-postgres==1.5.3
 
 # Install additional utilities
 RUN apt-get update && apt-get install -y --no-install-recommends \

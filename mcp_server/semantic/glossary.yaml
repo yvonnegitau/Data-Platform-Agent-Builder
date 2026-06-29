@@ -6,7 +6,7 @@ terms:
 
   DNF:
     full: "Did Not Finish"
-    definition: "A driver who started a race but did not complete it. In the data: position IS NULL."
+    definition: "A driver who started a race but did not complete it. In the data: position_text = 'R'."
 
   DNS:
     full: "Did Not Start"

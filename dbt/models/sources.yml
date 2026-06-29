@@ -2,8 +2,7 @@ version: 2
 
 sources:
   - name: f1_bronze
-    description: "Raw F1 data from DLT ingestion"
-    database: postgres_bronze
+    description: "Raw F1 data from DLT ingestion (Postgres f1_bronze schema)"
     schema: f1_bronze
     tables:
       - name: races

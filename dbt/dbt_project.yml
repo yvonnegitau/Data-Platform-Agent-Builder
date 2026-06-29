@@ -35,7 +35,7 @@ models:
   data_platform_f1:
     staging:
       +materialized: table
-      +schema: staging
+      +schema: f1_bronze_staging
       +tags: ["bronze","staging"]
       +pre-hook: "{{ dbt_utils.log_info('Running pre-hook for staging models') }}"
       +post-hook: "{{ dbt_utils.log_info('Running post-hook for staging models') }}"
@@ -44,10 +44,10 @@ models:
         description: "Staging models for F1 data"
       # +contract:
       #   enforced: true
-    silver: # Silver Layer uses Duckdb with cross-database access
+    silver: # Silver layer, built directly in Postgres (f1_silver)
       dims:
         +materialized: table
-        +schema: silver
+        +schema: f1_silver
         +tags: ["silver","dimension"]
         +pre-hook: "{{ dbt_utils.log_info('Running pre-hook for silver dimensions') }}"
         +post-hook: "{{ dbt_utils.log_info('Running post-hook for silver dimensions') }}"
@@ -56,7 +56,7 @@ models:
           description: "Silver dimension models for F1 data"
       facts:
         +materialized: table
-        +schema: silver
+        +schema: f1_silver
         +tags: ["silver","fact"]
         +pre-hook: "{{ dbt_utils.log_info('Running pre-hook for silver facts') }}"
         +post-hook: "{{ dbt_utils.log_info('Running post-hook for silver facts') }}"

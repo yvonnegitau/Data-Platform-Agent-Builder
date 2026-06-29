@@ -1,4 +1,9 @@
-mcp>=1.9.0
-duckdb>=1.2.0
+mcp[cli]>=1.9.0
 pydantic>=2.0
 PyYAML>=6.0
+anyio>=3.0
+httpx>=0.24.0
+uvicorn>=0.30.0
+starlette>=0.27.0
+mcpo>=0.0.10
+psycopg2-binary>=2.9

@@ -1,15 +1,42 @@
 """
-database.py — single source of truth for DuckDB access.
+database.py — single source of truth for query access.
 
-All queries flow through the `run_query` function, which:
-  - Opens the database read-only (so nothing in the silver layer can be mutated)
+All queries flow through `run_query`, which:
+  - Reads the silver layer directly from Postgres (the f1_silver schema)
   - Returns a consistent JSON envelope that every MCP tool can rely on
   - Auto-injects era caveats when results span known F1 boundary years
+
+Tool SQL is written against a `silver.` schema prefix (a holdover from the
+DuckDB days); run_query rewrites that to the real Postgres schema
+(`f1_silver`) centrally, so the tools need no changes. The connection is
+read-only, so nothing in the silver layer can be mutated through this path.
 """
 
+import re
 import time
-import duckdb
-from config import DB_PATH, MAX_ROWS, ERA_CAVEATS
+from decimal import Decimal
+
+import psycopg2
+
+from config import PG_DSN, PG_SILVER_SCHEMA, MAX_ROWS, ERA_CAVEATS
+
+# Rewrites a bare `silver.` schema prefix to the real Postgres schema.
+# `\bsilver\.` never matches inside `f1_silver.` (the char before "silver"
+# there is "_", a word char, so the word boundary does not apply).
+_SCHEMA_RE = re.compile(r"\bsilver\.")
+
+
+def _connect() -> "psycopg2.extensions.connection":
+    conn = psycopg2.connect(PG_DSN)
+    conn.set_session(readonly=True, autocommit=True)
+    return conn
+
+
+def _coerce(value):
+    """Make values JSON-friendly: Decimal -> float (dates handled downstream)."""
+    if isinstance(value, Decimal):
+        return float(value)
+    return value
 
 
 def run_query(sql: str, params: list | None = None, limit: int = 100) -> dict:
@@ -27,18 +54,25 @@ def run_query(sql: str, params: list | None = None, limit: int = 100) -> dict:
         }
     """
     start = time.perf_counter()
+    conn = None
 
     try:
-        # Read-only mode: DuckDB will refuse any INSERT/UPDATE/DELETE
-        conn = duckdb.connect(str(DB_PATH), read_only=True)
-
-        # Apply a safety limit if the query doesn't already have one
+        sql = _SCHEMA_RE.sub(f"{PG_SILVER_SCHEMA}.", sql)
         capped_sql = _apply_limit(sql, min(limit, MAX_ROWS))
 
-        result = conn.execute(capped_sql, params or [])
-        columns = [desc[0] for desc in result.description]
-        rows = [dict(zip(columns, row)) for row in result.fetchall()]
-        conn.close()
+        conn = _connect()
+        cur = conn.cursor()
+        if params:
+            # Tool SQL uses `?` placeholders (DuckDB style); psycopg uses `%s`.
+            cur.execute(capped_sql.replace("?", "%s"), params)
+        else:
+            # No params: execute without interpolation so literal `%`
+            # (e.g. ILIKE '%name%' in query patterns) is left untouched.
+            cur.execute(capped_sql)
+
+        columns = [desc[0] for desc in cur.description]
+        rows = [{c: _coerce(v) for c, v in zip(columns, row)} for row in cur.fetchall()]
+        cur.close()
 
         elapsed_ms = int((time.perf_counter() - start) * 1000)
         notes = _era_notes(rows, columns)
@@ -63,6 +97,9 @@ def run_query(sql: str, params: list | None = None, limit: int = 100) -> dict:
             "execution_ms": elapsed_ms,
             "notes": [],
         }
+    finally:
+        if conn is not None:
+            conn.close()
 
 
 def _apply_limit(sql: str, limit: int) -> str:

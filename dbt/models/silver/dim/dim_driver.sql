@@ -91,12 +91,12 @@ select
     -- Success rate calculations
     case
         when coalesce(cos.races_before_season,0) > 0
-        then round((coalesce(cos.wins_before_season, 0)::float / coalesce(cos.races_before_season,0)) * 100, 2)
+        then round(((coalesce(cos.wins_before_season, 0)::float / coalesce(cos.races_before_season,0)) * 100)::numeric, 2)
         else 0.0
     end as win_percentage_before_season,
     case
         when coalesce(cos.races_before_season,0) > 0
-        then round((coalesce(cos.podiums_before_season, 0)::float / coalesce(cos.races_before_season,0)) * 100, 2)
+        then round(((coalesce(cos.podiums_before_season, 0)::float / coalesce(cos.races_before_season,0)) * 100)::numeric, 2)
         else 0.0
     end as podium_percentage_before_season,
 

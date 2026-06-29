@@ -21,7 +21,8 @@ tables:
       season:                           "Calendar year of the race (e.g. 2023)"
       round:                            "Race number within the season (1 = first race)"
       grid_position:                    "Starting grid position. 1 = pole position. NULL if driver did not start."
-      position:                         "Finishing position. NULL if the driver did not finish (DNF/DSQ/etc)."
+      position:                         "Classified finishing position. Always populated. Use position_text = 'R' to detect DNFs — do NOT use position IS NULL."
+      position_text:                    "Raw position text. 'R' = retired/DNF, 'D' = disqualified, a number = finishing position. Use this to detect non-finishers."
       points:                           "Points scored in this race under the points system active at the time."
       laps:                             "Number of laps completed."
       is_win:                           "1 if position = 1, else 0."
@@ -120,7 +121,7 @@ metrics:
 
   dnf_rate:
     definition: "Proportion of races where the driver did not finish."
-    sql: "COUNT(*) FILTER (WHERE position IS NULL)::FLOAT / COUNT(*)"
+    sql: "COUNT(*) FILTER (WHERE position_text = 'R')::FLOAT / COUNT(*)"
 
   podium_rate:
     definition: "Proportion of races where the driver finished on the podium."
@@ -128,7 +129,7 @@ metrics:
 
   avg_finishing_position:
     definition: "Average finishing position, excluding DNFs."
-    sql: "AVG(position) FILTER (WHERE position IS NOT NULL)"
+    sql: "AVG(position) FILTER (WHERE position_text != 'R')"
 
   points_per_race:
     definition: "Average points scored per race started."

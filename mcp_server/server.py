@@ -21,6 +21,7 @@ To connect to Claude Desktop, add this to claude_desktop_config.json:
 import asyncio
 import json
 import logging
+import sys
 from typing import Any
 
 import mcp.types as types
@@ -50,6 +51,11 @@ from tools.metadata import (
     get_coverage_chart_data,
     get_persona,
 )
+from tools.metabase import (
+    create_metabase_question,
+    create_metabase_dashboard,
+)
+from tools.knowledge import search_knowledge
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("f1-mcp")
@@ -131,7 +137,7 @@ TOOLS: dict[str, tuple] = {
     # ── Raw SQL ────────────────────────────────────────────────────────────
     "execute_sql": (
         execute_sql,
-        "Execute a read-only SQL SELECT query against the F1 silver layer in DuckDB. "
+        "Execute a read-only SQL SELECT query against the F1 silver layer in Postgres. "
         "Use this for any analysis not covered by the pre-built tools. "
         "Before writing SQL, call get_schema() to confirm column names and join keys. "
         "Call get_query_pattern() for SQL templates including window functions. "
@@ -146,7 +152,7 @@ TOOLS: dict[str, tuple] = {
                     "description": "The SQL SELECT query to execute.",
                 },
                 "limit": {
-                    "type": "integer",
+                    "type": ["integer", "null"],
                     "description": "Max rows to return (default 100, max 500).",
                     "default": 100,
                 },
@@ -169,7 +175,7 @@ TOOLS: dict[str, tuple] = {
                     "description": "Driver name (fuzzy-matched, e.g. 'Hamilton', 'Max').",
                 },
                 "season": {
-                    "type": "integer",
+                    "type": ["integer", "null"],
                     "description": "Optional: return race-by-race detail for this season.",
                 },
             },
@@ -179,27 +185,29 @@ TOOLS: dict[str, tuple] = {
 
     "get_season_standings": (
         get_season_standings,
-        "Championship standings for a season. Returns final standings by default. "
-        "Pass after_round to see the standings at a specific point in the season. "
-        "Useful for title battle analysis.",
+        "Championship standings for a season — includes wins, podiums, and points per driver. "
+        "Use this for ANY question about a season's results: who won the most races, "
+        "who scored the most points, who was champion, title battle analysis, "
+        "or standings at a specific round. Returns final standings by default; "
+        "pass after_round to see standings mid-season.",
         {
             "type": "object",
             "properties": {
                 "season": {
-                    "type": "integer",
-                    "description": "The season year (e.g. 2023).",
+                    "type": ["integer", "null"],
+                    "description": "The season year as a 4-digit integer extracted from the user's question (e.g. 2024). Required to run this tool.",
                 },
                 "after_round": {
-                    "type": "integer",
-                    "description": "Optional: standings after this round number.",
+                    "type": ["integer", "null"],
+                    "description": "Optional: standings after this round number. Omit for final standings.",
                 },
                 "top_n": {
-                    "type": "integer",
+                    "type": ["integer", "null"],
                     "description": "Number of drivers to return (default 10).",
                     "default": 10,
                 },
             },
-            "required": ["season"],
+            "required": [],
         },
     ),
 
@@ -213,8 +221,8 @@ TOOLS: dict[str, tuple] = {
             "properties": {
                 "driver_a": {"type": "string", "description": "First driver name."},
                 "driver_b": {"type": "string", "description": "Second driver name."},
-                "season_from": {"type": "integer", "description": "Optional start year."},
-                "season_to":   {"type": "integer", "description": "Optional end year."},
+                "season_from": {"type": ["integer", "null"], "description": "Optional start year."},
+                "season_to":   {"type": ["integer", "null"], "description": "Optional end year."},
             },
             "required": ["driver_a", "driver_b"],
         },
@@ -238,12 +246,12 @@ TOOLS: dict[str, tuple] = {
                     "default": "biggest_comeback",
                 },
                 "limit": {
-                    "type": "integer",
+                    "type": ["integer", "null"],
                     "description": "Number of races to return (default 10).",
                     "default": 10,
                 },
-                "season_from": {"type": "integer", "description": "Optional start year."},
-                "season_to":   {"type": "integer", "description": "Optional end year."},
+                "season_from": {"type": ["integer", "null"], "description": "Optional start year."},
+                "season_to":   {"type": ["integer", "null"], "description": "Optional end year."},
             },
         },
     ),
@@ -260,8 +268,8 @@ TOOLS: dict[str, tuple] = {
                     "type": "string",
                     "description": "Team name (fuzzy-matched, e.g. 'Red Bull', 'Ferrari').",
                 },
-                "season_from": {"type": "integer", "description": "Optional start year."},
-                "season_to":   {"type": "integer", "description": "Optional end year."},
+                "season_from": {"type": ["integer", "null"], "description": "Optional start year."},
+                "season_to":   {"type": ["integer", "null"], "description": "Optional end year."},
             },
             "required": ["constructor_name"],
         },
@@ -312,7 +320,7 @@ TOOLS: dict[str, tuple] = {
             "type": "object",
             "properties": {
                 "season": {
-                    "type": "integer",
+                    "type": ["integer", "null"],
                     "description": "Season year to check. Omit for all seasons.",
                 }
             },
@@ -342,6 +350,95 @@ TOOLS: dict[str, tuple] = {
                 }
             },
             "required": ["persona"],
+        },
+    ),
+
+    # ── Semantic-layer retrieval ─────────────────────────────────────────────
+    "search_knowledge": (
+        search_knowledge,
+        "Retrieve the most relevant query patterns (worked SQL templates), metric "
+        "formulas, and glossary terms for a question. ALWAYS call this FIRST when a "
+        "request needs custom SQL or a chart, then reuse what it returns instead of "
+        "guessing column names or formulas. Pass the user's question as the query.",
+        {
+            "type": "object",
+            "properties": {
+                "query": {"type": "string", "description": "The user's question or analysis goal."},
+                "k": {"type": ["integer", "null"], "description": "How many of each kind to return (default 3)."},
+            },
+            "required": ["query"],
+        },
+    ),
+
+    # ── Publish to Metabase ──────────────────────────────────────────────────
+    "create_metabase_question": (
+        create_metabase_question,
+        "Save a chart/question to Metabase BI so it persists and is visible to "
+        "everyone. Use this when the user asks to 'create a chart', 'save this', "
+        "'build a dashboard', or 'put this in Metabase'. "
+        "Pass a SQL SELECT against the f1_silver schema. The SQL is validated "
+        "before saving; if it errors you get the message + schema back to retry. "
+        "Schema — fact_race_results(season, round, driver_key, constructor_key, "
+        "circuit_key, position, position_text('R'=DNF), points, is_win, is_podium, "
+        "grid_position, total_laps); dim_driver(dim_driver_key, full_name); "
+        "dim_constructor(dim_constructor_key, constructor_name); "
+        "dim_circuit(dim_circuit_key, circuit_name); "
+        "dim_races(dim_race_key, season, round, race_name, race_date). "
+        "Join fact.driver_key = dim_driver.dim_driver_key. Count wins with SUM(is_win); "
+        "filter a year with season=2023 (NOT YEAR(race_date)). There is no winner_id column. "
+        "Metric formulas: win_rate/dnf_rate/podium_rate = COUNT(*) FILTER (WHERE is_win=1 / position_text='R' / is_podium=1)::numeric / COUNT(*); "
+        "avg_finish = AVG(position) FILTER (WHERE position_text != 'R'). "
+        "ALWAYS join the dimension tables you reference. Working example to adapt: "
+        "SELECT d.full_name AS driver, SUM(f.is_win) AS wins "
+        "FROM f1_silver.fact_race_results f "
+        "JOIN f1_silver.dim_driver d ON f.driver_key = d.dim_driver_key "
+        "WHERE f.season = 2023 GROUP BY d.full_name ORDER BY wins DESC. "
+        "For a chart set display (bar/line/pie/row/area/scalar) and x_axis/y_axis to "
+        "column aliases from your SELECT. Saved to the shared 'F1 Analytics' collection; "
+        "returns a clickable Metabase URL.",
+        {
+            "type": "object",
+            "properties": {
+                "name": {"type": "string", "description": "Title for the question/chart."},
+                "sql": {
+                    "type": "string",
+                    "description": "SQL SELECT against the f1_silver schema. Runs in Postgres via Metabase.",
+                },
+                "display": {
+                    "type": "string",
+                    "enum": ["table", "bar", "line", "pie", "row", "area", "combo", "scalar"],
+                    "description": "Visualization type. Use 'table' if unsure.",
+                    "default": "table",
+                },
+                "x_axis": {"type": ["string", "null"], "description": "Column for the chart's x-axis / category (bar/line/pie)."},
+                "y_axis": {"type": ["string", "null"], "description": "Column for the chart's y-axis / value (bar/line/pie)."},
+                "series": {"type": ["string", "null"], "description": "Column to split into multiple lines/bars (e.g. 'driver' for one line per driver over rounds)."},
+                "description": {"type": ["string", "null"], "description": "Optional description."},
+                "collection": {"type": ["string", "null"], "description": "Collection name. Defaults to 'F1 Analytics'."},
+            },
+            "required": ["name", "sql"],
+        },
+    ),
+
+    "create_metabase_dashboard": (
+        create_metabase_dashboard,
+        "Create a Metabase dashboard from questions you already saved with "
+        "create_metabase_question. Pass the question_ids returned by those calls. "
+        "Cards are auto-arranged. Returns a clickable dashboard URL. "
+        "Saved to the shared 'F1 Analytics' collection automatically.",
+        {
+            "type": "object",
+            "properties": {
+                "name": {"type": "string", "description": "Dashboard title."},
+                "question_ids": {
+                    "type": "array",
+                    "items": {"type": "integer"},
+                    "description": "IDs of saved questions to place on the dashboard.",
+                },
+                "description": {"type": ["string", "null"], "description": "Optional description."},
+                "collection": {"type": ["string", "null"], "description": "Collection name. Defaults to 'F1 Analytics'."},
+            },
+            "required": ["name", "question_ids"],
         },
     ),
 }
@@ -388,8 +485,9 @@ async def call_tool(name: str, arguments: dict[str, Any]) -> list[types.TextCont
 
 # ── Entry point ───────────────────────────────────────────────────────────────
 
-async def main():
-    logger.info("F1 Data MCP Server starting...")
+async def run_stdio():
+    """stdio transport — used by Claude Desktop."""
+    logger.info("F1 Data MCP Server starting (stdio)...")
     async with stdio_server() as (read_stream, write_stream):
         await server.run(
             read_stream,
@@ -398,5 +496,42 @@ async def main():
         )
 
 
+def run_http(host: str = "0.0.0.0", port: int = 8000):
+    """HTTP transport — used by Open WebUI (streamable-http)."""
+    from contextlib import asynccontextmanager
+    from mcp.server.streamable_http_manager import StreamableHTTPSessionManager
+    from starlette.applications import Starlette
+    from starlette.routing import Mount
+    import uvicorn
+
+    logger.info(f"F1 Data MCP Server starting (http) on {host}:{port}...")
+
+    session_manager = StreamableHTTPSessionManager(
+        app=server,
+        event_store=None,
+        json_response=True,
+        stateless=True,
+    )
+
+    async def handle_mcp(scope, receive, send):
+        await session_manager.handle_request(scope, receive, send)
+
+    @asynccontextmanager
+    async def lifespan(app):
+        async with session_manager.run():
+            yield
+
+    starlette_app = Starlette(
+        lifespan=lifespan,
+        routes=[Mount("/", app=handle_mcp)],
+    )
+
+    uvicorn.run(starlette_app, host=host, port=port, log_level="info")
+
+
 if __name__ == "__main__":
-    asyncio.run(main())
+    transport = sys.argv[1] if len(sys.argv) > 1 else "stdio"
+    if transport == "http":
+        run_http()
+    else:
+        asyncio.run(run_stdio())

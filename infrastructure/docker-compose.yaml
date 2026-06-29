@@ -109,46 +109,81 @@ services:
       timeout: 5s
       retries: 5
 
-  # ── Open WebUI — self-hosted chat interface ──────────────────────────────
+  # ── mcpo-openapi — MCP → OpenAPI bridge for Open WebUI tool servers ──────
+  # Wraps the stdio MCP server (server.py) as an OpenAPI server Open WebUI can
+  # consume as a native tool server (better small-model tool calling).
+  mcpo-openapi:
+    build:
+      context: ..
+      dockerfile: infrastructure/mcpo.Dockerfile
+    container_name: mcpo_openapi
+    command: ["mcpo", "--host", "0.0.0.0", "--port", "8001", "--", "python", "server.py"]
+    ports:
+      - "8001:8001"
+    environment:
+      - PG_HOST=postgres
+      - PG_PORT=5432
+      - PG_DB=dagster
+      - PG_USER=dagster
+      - PG_PASSWORD=dagsterpass
+      - PG_SILVER_SCHEMA=f1_silver
+      - MB_BASE_URL=http://metabase:3000
+      - MB_PUBLIC_URL=http://localhost:3002
+      - MB_API_KEY=${METABASE_API_KEY}
+      - MB_DATABASE_NAME=F1 Silver
+      - MB_DEFAULT_COLLECTION=F1 Analytics
+    networks:
+      - data_platform
+    depends_on:
+      - postgres
+      - metabase
+    restart: unless-stopped
+
+  # ── Open WebUI — Ollama-native chat UI (alternative agent harness) ───────
   open-webui:
     image: ghcr.io/open-webui/open-webui:main
     container_name: open_webui
     ports:
       - "3000:8080"
     environment:
-      # Point at locally-running Ollama on the Mac host
       - OLLAMA_BASE_URL=http://host.docker.internal:11434
-      - WEBUI_SECRET_KEY=local-dev-only-change-in-production
+      - WEBUI_SECRET_KEY=local-dev-only
     extra_hosts:
-      # Needed on Linux hosts; harmless on macOS Docker Desktop
       - "host.docker.internal:host-gateway"
     volumes:
       - open_webui_data:/app/backend/data
     networks:
       - data_platform
+    depends_on:
+      - mcpo-openapi
     restart: unless-stopped
 
-  # ── mcpo — MCP → OpenAI-compatible HTTP bridge ───────────────────────────
-  # Wraps the MCP server so Open WebUI can call our tools as an OpenAI Tool Server
-  mcpo:
-    build:
-      context: ..
-      dockerfile: infrastructure/mcpo.Dockerfile
-    container_name: mcpo
+  # ── Metabase — BI / dashboards over the Postgres silver layer ────────────
+  # The agent drives this via its REST API to create questions + dashboards.
+  metabase:
+    image: metabase/metabase:latest
+    container_name: metabase
     ports:
-      - "8000:8000"
+      - "3002:3000"
     environment:
-      - F1_DB_PATH=/data/medallion/f1_data.duckdb
+      # Metabase's own app database (H2 file, persisted in a volume — fine for
+      # local; switch to a dedicated Postgres db before any real deployment).
+      MB_DB_TYPE: h2
+      MB_DB_FILE: /metabase-data/metabase.db
     volumes:
-      - ${HOME}/data/f1:/data
+      - metabase_data:/metabase-data
     networks:
       - data_platform
+    depends_on:
+      - postgres
     restart: unless-stopped
 
 volumes:
   postgres_data:
     driver: local
   dagster_storage:
+    driver: local
+  metabase_data:
     driver: local
   open_webui_data:
     driver: local

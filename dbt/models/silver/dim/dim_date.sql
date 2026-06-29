@@ -18,7 +18,7 @@ date_calculations as (
         date_day,
         
         -- Date key (YYYYMMDD format for joins)
-        cast(strftime(date_day, '%Y%m%d') as integer) as date_key,
+        cast(to_char(date_day, 'YYYYMMDD') as integer) as date_key,
         
         -- Basic date components
         extract(year from date_day) as year,
@@ -29,13 +29,13 @@ date_calculations as (
         extract(dow from date_day) as day_of_week, -- 0=Sunday, 6=Saturday
         extract(doy from date_day) as day_of_year,
         
-        -- Date formatting using strftime
-        strftime(date_day, '%Y-%m-%d') as date_iso,
-        strftime(date_day, '%B %d, %Y') as date_formatted,
-        strftime(date_day, '%b') as month_short_name,
-        strftime(date_day, '%B') as month_full_name,
-        strftime(date_day, '%a') as day_short_name,
-        strftime(date_day, '%A') as day_full_name,
+        -- Date formatting (Postgres to_char; FM strips padding)
+        to_char(date_day, 'YYYY-MM-DD') as date_iso,
+        to_char(date_day, 'FMMonth FMDD, YYYY') as date_formatted,
+        to_char(date_day, 'Mon') as month_short_name,
+        to_char(date_day, 'FMMonth') as month_full_name,
+        to_char(date_day, 'Dy') as day_short_name,
+        to_char(date_day, 'FMDay') as day_full_name,
         
         -- Week calculations
         date_trunc('week', date_day)::date as week_start_date,

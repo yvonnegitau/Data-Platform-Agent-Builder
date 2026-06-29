@@ -59,8 +59,8 @@ from (
 ) ds
 right join (
     select
-        season,
-        unnest(generate_series(1, max_position)) as expected_position
+        max_pos.season,
+        generate_series(1, max_pos.max_position) as expected_position
     from (
         select
             season,

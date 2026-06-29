@@ -6,7 +6,7 @@ SELECT query against the silver layer. The semantic layer tools exist to
 give Claude enough context to use this well.
 
 Safety rules:
-  1. Only SELECT statements are allowed (read-only DuckDB connection also
+  1. Only SELECT statements are allowed (the read-only Postgres connection also
      enforces this at the DB level, but we reject early for a clear error).
   2. Queries are capped at MAX_ROWS rows.
   3. Query length is capped to prevent abuse.

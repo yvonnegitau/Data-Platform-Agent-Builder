@@ -31,14 +31,14 @@ bronze_dbt_resource = DbtCliResource(
     project_dir="/opt/dbt/app",
     profiles_dir="/opt/dbt/app",
     profile_name="data_platform_f1",  # Explicit profile name
-    target="dev",
+    target="prod",
 )
 
 silver_dbt_resource = DbtCliResource(
     project_dir="/opt/dbt/app",
     profiles_dir="/opt/dbt/app",
     profile_name="data_platform_f1",  # Explicit profile name
-    target="duckdb_cross",
+    target="prod",
 )
 
 f1_static_job = define_asset_job(
@@ -76,7 +76,7 @@ f1_dbt_silver_job = define_asset_job(
 coverage_refresh_job = define_asset_job(
     "coverage_refresh_job",
     selection=AssetSelection.groups("warehouse_coverage"),
-    description="Daily snapshot of data warehouse coverage metrics into DuckDB",
+    description="Daily snapshot of data warehouse coverage metrics into Postgres",
 )
 
 

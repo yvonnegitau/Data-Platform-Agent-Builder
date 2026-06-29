@@ -1,9 +1,9 @@
 {{ config(severity='warn') }}
 
 -- Test: All races must have valid circuits
-select 
+select
     r.season,
-    r.round,
+    cast(r.round as varchar) as round,
     r.circuit_id,
     'Missing circuit' as error_type
 from {{ ref('dim_races') }} r

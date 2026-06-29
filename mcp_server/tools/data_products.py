@@ -61,7 +61,7 @@ def get_driver_career(driver_name: str, season: int | None = None) -> dict:
                 SUM(f.is_podium)                            AS podiums,
                 SUM(f.is_points_finish)                     AS points_finishes,
                 SUM(f.points)                               AS total_points,
-                COUNT(*) FILTER (WHERE f.position IS NULL)  AS dnfs,
+                COUNT(*) FILTER (WHERE f.position_text = 'R')  AS dnfs,
                 MIN(f.championship_position_running)        AS best_championship_pos,
                 MAX(f.career_wins_running)                  AS career_wins_by_season_end,
                 MAX(f.career_podiums_running)               AS career_podiums_by_season_end
@@ -79,7 +79,7 @@ def get_driver_career(driver_name: str, season: int | None = None) -> dict:
     return result
 
 
-def get_season_standings(season: int, after_round: int | None = None, top_n: int = 10) -> dict:
+def get_season_standings(season: int | None = None, after_round: int | None = None, top_n: int = 10) -> dict:
     """
     Championship standings for a season — either final standings or
     standings at a specific point in the season.
@@ -93,6 +93,8 @@ def get_season_standings(season: int, after_round: int | None = None, top_n: int
     after_round: if provided, standings as of that round
     top_n: number of drivers to return (default 10)
     """
+    if season is None:
+        return {"status": "error", "error": "season is required — please provide a 4-digit year (e.g. 2024) and call this tool again."}
     round_filter = "AND r.round = ?" if after_round else ""
     # Without after_round, get each driver's last race of the season
     if after_round:
@@ -187,6 +189,7 @@ def compare_drivers(
                 f.season, r.round, r.race_name,
                 d.full_name,
                 f.position,
+                f.position_text,
                 f.grid_position,
                 f.points,
                 f.is_win,
@@ -203,14 +206,16 @@ def compare_drivers(
             a.race_name,
             a.full_name       AS driver_a,
             a.position        AS driver_a_pos,
+            a.position_text   AS driver_a_pos_text,
             a.points          AS driver_a_pts,
             b.full_name       AS driver_b,
             b.position        AS driver_b_pos,
+            b.position_text   AS driver_b_pos_text,
             b.points          AS driver_b_pts,
             CASE
-                WHEN a.position IS NULL AND b.position IS NULL THEN 'both_dnf'
-                WHEN a.position IS NULL                        THEN b.full_name
-                WHEN b.position IS NULL                        THEN a.full_name
+                WHEN a.position_text = 'R' AND b.position_text = 'R' THEN 'both_dnf'
+                WHEN a.position_text = 'R'                        THEN b.full_name
+                WHEN b.position_text = 'R'                        THEN a.full_name
                 WHEN a.position < b.position                   THEN a.full_name
                 ELSE b.full_name
             END AS finished_ahead
@@ -234,12 +239,41 @@ def compare_drivers(
         a_wins = sum(1 for r in rows if r["finished_ahead"] == a_name)
         b_wins = sum(1 for r in rows if r["finished_ahead"] == b_name)
         both_dnf = sum(1 for r in rows if r["finished_ahead"] == "both_dnf")
+        a_dnfs = sum(1 for r in rows if r.get("driver_a_pos_text") == "R")
+        b_dnfs = sum(1 for r in rows if r.get("driver_b_pos_text") == "R")
+        seasons_span = sorted({r["season"] for r in rows})
+        leader, ahead = (a_name, a_wins) if a_wins >= b_wins else (b_name, b_wins)
+        trailer, behind = (b_name, b_wins) if leader == a_name else (a_name, a_wins)
         result["summary"] = {
             "shared_races": total,
-            driver_a: {"finished_ahead": a_wins, "name": a_name},
-            driver_b: {"finished_ahead": b_wins, "name": b_name},
+            "seasons": f"{seasons_span[0]}-{seasons_span[-1]}" if seasons_span else "",
+            driver_a: {"finished_ahead": a_wins, "dnfs": a_dnfs, "name": a_name},
+            driver_b: {"finished_ahead": b_wins, "dnfs": b_dnfs, "name": b_name},
             "both_dnf": both_dnf,
         }
+        # Ready-made overall answer so small models don't have to aggregate.
+        result["headline"] = (
+            f"Across {total} shared races ({result['summary']['seasons']}), "
+            f"{leader} finished ahead {ahead} times to {trailer}'s {behind}"
+            + (f" ({both_dnf} races both retired)." if both_dnf else ".")
+        )
+
+        # Per-race rows are huge (100+ verbose records) and overflow small-model
+        # context. The summary above is the answer; expose only a compact
+        # per-season tally and drop the raw rows from what the model receives.
+        by_season: dict[int, dict] = {}
+        for r in rows:
+            s = by_season.setdefault(r["season"], {a_name: 0, b_name: 0, "both_dnf": 0})
+            fa = r["finished_ahead"]
+            if fa in s:
+                s[fa] += 1
+        result["by_season"] = by_season
+        result["rows"] = []
+        result["note"] = (
+            "For an overall / all-seasons answer, state the 'headline' field verbatim. "
+            "Use 'by_season' only if the user asks about a specific year. "
+            "Per-race detail omitted; ask for a specific season to get it."
+        )
 
     return result
 
@@ -324,7 +358,7 @@ def get_greatest_races(
                 d.full_name        AS driver,
                 c.constructor_name AS team,
                 f.grid_position,
-                f.laps
+                f.total_laps
             FROM silver.fact_race_results f
             JOIN silver.dim_driver      d  ON f.driver_key      = d.dim_driver_key
             JOIN silver.dim_constructor c  ON f.constructor_key = c.dim_constructor_key
@@ -341,10 +375,10 @@ def get_greatest_races(
             SELECT
                 f.season,
                 r.race_name,
-                COUNT(*) FILTER (WHERE f.position IS NULL) AS dnf_count,
+                COUNT(*) FILTER (WHERE f.position_text = 'R') AS dnf_count,
                 COUNT(*)                                   AS starters,
                 ROUND(
-                    COUNT(*) FILTER (WHERE f.position IS NULL)::FLOAT / COUNT(*) * 100,
+                    COUNT(*) FILTER (WHERE f.position_text = 'R')::numeric / COUNT(*) * 100,
                     1
                 )                                          AS dnf_pct
             FROM silver.fact_race_results f
@@ -405,7 +439,7 @@ def get_constructor_history(
             SUM(f.is_podium)                            AS podiums,
             SUM(f.is_points_finish)                     AS points_finishes,
             SUM(f.points)                               AS total_points,
-            COUNT(*) FILTER (WHERE f.position IS NULL)  AS dnfs,
+            COUNT(*) FILTER (WHERE f.position_text = 'R')  AS dnfs,
             MIN(f.championship_position_running)        AS best_driver_champ_pos,
             STRING_AGG(DISTINCT d.full_name, ', ')      AS driver_lineup
         FROM silver.fact_race_results f
@@ -439,7 +473,7 @@ def get_circuit_stats(circuit_name: str) -> dict:
             c.constructor_name AS team,
             f.grid_position    AS started_from,
             f.grid_to_finish_diff AS places_gained,
-            f.laps
+            f.total_laps
         FROM silver.fact_race_results f
         JOIN silver.dim_circuit     ci ON f.circuit_key     = ci.dim_circuit_key
         JOIN silver.dim_driver      d  ON f.driver_key      = d.dim_driver_key

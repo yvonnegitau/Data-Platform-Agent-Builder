@@ -45,6 +45,9 @@ dbt_packages/
 logs/
 profiles.yml
 
+# Blog drafts
+blog-*.md
+
 # Local data directory
 data/
 

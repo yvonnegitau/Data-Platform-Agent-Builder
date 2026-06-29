@@ -127,7 +127,7 @@ def get_season_completeness(season: int | None = None) -> dict:
             COALESCE(l.rounds_loaded, 0)        AS rounds_loaded,
             s.rounds_in_schedule,
             ROUND(
-                COALESCE(l.rounds_loaded, 0)::FLOAT
+                COALESCE(l.rounds_loaded, 0)::numeric
                 / s.rounds_in_schedule * 100, 1
             )                                   AS pct_complete,
             CASE
@@ -160,7 +160,7 @@ def get_season_completeness(season: int | None = None) -> dict:
                 COALESCE(l.rounds_loaded, 0)        AS rounds_loaded,
                 s.rounds_in_schedule,
                 ROUND(
-                    COALESCE(l.rounds_loaded, 0)::FLOAT
+                    COALESCE(l.rounds_loaded, 0)::numeric
                     / s.rounds_in_schedule * 100, 1
                 )                                   AS pct_complete,
                 CASE
@@ -192,7 +192,7 @@ def get_season_completeness(season: int | None = None) -> dict:
                 COALESCE(l.rounds_loaded, 0)        AS rounds_loaded,
                 s.rounds_in_schedule,
                 ROUND(
-                    COALESCE(l.rounds_loaded, 0)::FLOAT
+                    COALESCE(l.rounds_loaded, 0)::numeric
                     / s.rounds_in_schedule * 100, 1
                 )                                   AS pct_complete,
                 CASE
@@ -240,7 +240,7 @@ def get_coverage_chart_data() -> dict:
             s.season,
             COALESCE(l.rounds_loaded, 0)  AS rounds_loaded,
             s.rounds_in_schedule,
-            ROUND(COALESCE(l.rounds_loaded, 0)::FLOAT / s.rounds_in_schedule * 100, 1) AS pct_complete
+            ROUND(COALESCE(l.rounds_loaded, 0)::numeric / s.rounds_in_schedule * 100, 1) AS pct_complete
         FROM schedule s
         LEFT JOIN loaded l ON s.season = l.season
         ORDER BY s.season

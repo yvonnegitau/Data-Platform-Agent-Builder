@@ -5,7 +5,25 @@
 
 patterns:
 
-  - name: driver_season_summary
+  - name: wins_by_driver_in_season
+    description: "Who won the most races in a season. Ranks drivers by win count."
+    parameters: [season]
+    sql: |
+      SELECT
+        d.full_name          AS driver,
+        c.constructor_name   AS team,
+        SUM(f.is_win)        AS wins,
+        SUM(f.is_podium)     AS podiums,
+        SUM(f.points)        AS points
+      FROM silver.fact_race_results f
+      JOIN silver.dim_driver      d ON f.driver_key      = d.dim_driver_key
+      JOIN silver.dim_constructor c ON f.constructor_key = c.dim_constructor_key
+      WHERE f.season = {season}
+      GROUP BY d.full_name, c.constructor_name
+      ORDER BY wins DESC
+      LIMIT 10
+
+
     description: "All races for a single driver in a single season with running totals."
     parameters: [driver_name, season]
     sql: |
@@ -59,9 +77,9 @@ patterns:
         b.full_name    AS driver_b_name,
         b.position     AS driver_b_pos,
         CASE
-          WHEN a.position IS NULL AND b.position IS NULL THEN 'both_dnf'
-          WHEN a.position IS NULL THEN b.full_name
-          WHEN b.position IS NULL THEN a.full_name
+          WHEN a.position_text = 'R' AND b.position_text = 'R' THEN 'both_dnf'
+          WHEN a.position_text = 'R' THEN b.full_name
+          WHEN b.position_text = 'R' THEN a.full_name
           WHEN a.position < b.position THEN a.full_name
           ELSE b.full_name
         END AS finished_ahead

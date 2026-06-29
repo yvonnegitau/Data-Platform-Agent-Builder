@@ -1,49 +1,56 @@
 """
 coverage_assets.py — Dagster asset that refreshes warehouse coverage metrics.
 
-Runs daily (scheduled in repo.py) and writes a snapshot row to
-warehouse.data_coverage_history in DuckDB. This builds the historical
-trend data that the MCP get_coverage_chart_data tool can surface.
+Runs daily (scheduled in repo.py) and appends a snapshot row to
+f1_silver.data_coverage_history in Postgres. This builds the historical
+trend data behind coverage reporting. (Current, point-in-time coverage is
+also available as the f1_silver.season_completeness view built by dbt.)
 
 The asset:
-  1. Opens DuckDB in read-write mode (safe — MCP server is read-only)
-  2. Creates the warehouse schema and history table if they don't exist
-  3. Appends a new snapshot row with current coverage metrics
+  1. Connects to Postgres (read-write for this asset only)
+  2. Creates the history table if it doesn't exist
+  3. Replaces today's snapshot rows with current coverage metrics
   4. Returns a summary for Dagster's asset materialisation record
 """
 
 import os
 from datetime import date
-from pathlib import Path
 
-import duckdb
+import psycopg2
 import dagster as dg
 
-DB_PATH = Path(os.getenv("DUCKDB_PATH", "/data/medallion/f1_data.duckdb"))
+PG = dict(
+    host=os.getenv("POSTGRES_HOST", "postgres"),
+    port=os.getenv("POSTGRES_PORT", "5432"),
+    dbname=os.getenv("POSTGRES_DB", "dagster"),
+    user=os.getenv("POSTGRES_USER", "dagster"),
+    password=os.getenv("POSTGRES_PASSWORD", "dagsterpass"),
+)
 
 
 @dg.asset(
     group_name="warehouse_coverage",
     description=(
-        "Refreshes the data_coverage_history table in DuckDB with a daily snapshot "
-        "of how complete each season's data is. Powers the 'coverage over time' chart "
-        "in the Open WebUI warehouse assistant."
+        "Refreshes the f1_silver.data_coverage_history table in Postgres with a daily "
+        "snapshot of how complete each season's data is. Builds the 'coverage over time' "
+        "trend; current coverage is also available via the season_completeness view."
     ),
 )
 def coverage_refresh(context: dg.AssetExecutionContext) -> dg.MaterializeResult:
-    """Compute and store current warehouse coverage metrics."""
+    """Compute and store current warehouse coverage metrics in Postgres."""
 
-    conn = duckdb.connect(str(DB_PATH))  # read-write for this asset only
+    conn = psycopg2.connect(**PG)
+    conn.autocommit = True
+    cur = conn.cursor()
 
-    # Ensure the warehouse schema and history table exist
-    conn.execute("CREATE SCHEMA IF NOT EXISTS warehouse")
-    conn.execute("""
-        CREATE TABLE IF NOT EXISTS warehouse.data_coverage_history (
+    cur.execute("CREATE SCHEMA IF NOT EXISTS f1_silver")
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS f1_silver.data_coverage_history (
             snapshot_date         DATE NOT NULL,
             season                INTEGER NOT NULL,
             rounds_loaded         INTEGER NOT NULL,
             rounds_in_schedule    INTEGER NOT NULL,
-            pct_complete          DECIMAL(5,1) NOT NULL,
+            pct_complete          NUMERIC(5,1) NOT NULL,
             total_fact_rows       INTEGER NOT NULL,
             PRIMARY KEY (snapshot_date, season)
         )
@@ -51,52 +58,50 @@ def coverage_refresh(context: dg.AssetExecutionContext) -> dg.MaterializeResult:
 
     today = date.today().isoformat()
 
-    # Delete today's existing rows (idempotent re-run)
-    conn.execute(
-        "DELETE FROM warehouse.data_coverage_history WHERE snapshot_date = ?",
+    # Idempotent re-run: clear today's rows first
+    cur.execute(
+        "DELETE FROM f1_silver.data_coverage_history WHERE snapshot_date = %s",
         [today],
     )
 
-    # Compute current coverage and insert
-    conn.execute(f"""
-        INSERT INTO warehouse.data_coverage_history
+    cur.execute("""
+        INSERT INTO f1_silver.data_coverage_history
         SELECT
-            DATE '{today}'               AS snapshot_date,
+            %s::date                     AS snapshot_date,
             s.season,
             COALESCE(l.rounds_loaded, 0) AS rounds_loaded,
             s.rounds_in_schedule,
             ROUND(
-                COALESCE(l.rounds_loaded, 0)::FLOAT / s.rounds_in_schedule * 100, 1
+                COALESCE(l.rounds_loaded, 0)::numeric / s.rounds_in_schedule * 100, 1
             )                            AS pct_complete,
             COALESCE(f.fact_rows, 0)     AS total_fact_rows
         FROM (
             SELECT season, COUNT(*) AS rounds_in_schedule
-            FROM silver.dim_races GROUP BY season
+            FROM f1_silver.dim_races GROUP BY season
         ) s
         LEFT JOIN (
             SELECT season, COUNT(DISTINCT round) AS rounds_loaded
-            FROM silver.fact_race_results GROUP BY season
+            FROM f1_silver.fact_race_results GROUP BY season
         ) l ON s.season = l.season
         LEFT JOIN (
             SELECT season, COUNT(*) AS fact_rows
-            FROM silver.fact_race_results GROUP BY season
+            FROM f1_silver.fact_race_results GROUP BY season
         ) f ON s.season = f.season
-    """)
+    """, [today])
 
-    # Fetch summary for materialisation metadata
-    summary = conn.execute("""
+    cur.execute("""
         SELECT
-            COUNT(*)                                          AS seasons_snapshotted,
-            COUNT(*) FILTER (WHERE pct_complete = 100)       AS complete_seasons,
+            COUNT(*)                                              AS seasons_snapshotted,
+            COUNT(*) FILTER (WHERE pct_complete = 100)            AS complete_seasons,
             COUNT(*) FILTER (WHERE pct_complete BETWEEN 1 AND 99) AS partial_seasons,
-            ROUND(AVG(pct_complete), 1)                      AS avg_pct_complete
-        FROM warehouse.data_coverage_history
+            ROUND(AVG(pct_complete), 1)                           AS avg_pct_complete
+        FROM f1_silver.data_coverage_history
         WHERE snapshot_date = CURRENT_DATE
-    """).fetchone()
+    """)
+    seasons_snapshotted, complete, partial, avg_pct = cur.fetchone()
 
+    cur.close()
     conn.close()
-
-    seasons_snapshotted, complete, partial, avg_pct = summary
 
     context.log.info(
         f"Coverage snapshot written: {seasons_snapshotted} seasons, "
