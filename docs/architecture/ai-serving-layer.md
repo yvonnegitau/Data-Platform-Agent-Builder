@@ -34,8 +34,8 @@ and `f1_silver` — plus the `season_completeness` view. The MCP server reads `f
 directly via psycopg; its tool SQL uses a `silver.` prefix that `database.py` rewrites
 to `f1_silver` centrally. **DuckDB has been removed entirely**: no file, no sync script,
 no postgres-extension indirection. The only DuckDB-specific SQL that needed rewriting
-was `strftime` → `to_char` in `dim_date`.
-**Not yet wired into Dagster** — run the sync manually after a pipeline run.
+was `strftime` → `to_char` in `dim_date`. Dagster's dbt assets target the `prod`
+(Postgres) profile; run a `dbt build` to verify the migration end to end.
 
 ## Why Postgres, not DuckDB, as the serving store
 DuckDB as the OLAP layer hit three walls: single-file write lock (Metabase's
@@ -120,13 +120,23 @@ The model then **composes** them for queries it has never seen.
 because retrieval surfaced the `rolling_form` pattern and the `dnf_rate` metric,
 and the model adapted them. That's genuine generalization, not a hand-fed answer.
 
-### Known limit
-Validation catches **broken** SQL, not **semantically wrong** SQL. "Points gap
-between Norris and Piastri" produced valid SQL with the wrong meaning (per-race
-`LAG` delta instead of cumulative championship difference) — and since it ran, no
-retry fired. The correct `points_gap_over_season` pattern exists and retrieval
-ranks it #1, but only helps if the model invokes/uses retrieval. This is the 7B's
-comprehension ceiling on nuanced analytical requests; a larger model is the fix.
+### Where it breaks (verified by testing)
+A round of test questions, each checked against the database, mapped the boundary:
+
+| Question | Result |
+|---|---|
+| Points gap, Verstappen vs Norris, 2024 | ✅ correct (55 = 399 − 344) |
+| Hamilton's longest win streak | ✅ count right (5, 2020); race-name labels slipped |
+| Best average finishing position, 2023 | ❌ wrong: answered "Hamilton"; real answer Verstappen 1.27 (Hamilton 3rd, 5.57) |
+| Circuit with highest DNF rate | ✅ correct (Reims-Gueux 88.9%, 16/18); no small-sample caveat |
+
+The pattern: **metric-on-a-dimension** and **single-entity** questions work, but
+**superlatives that require ranking across entities** ("which driver had the best…")
+break — the model grabs a single-entity pattern, invents a subject, and asserts a
+winner it never actually computed. Validation catches SQL that does not *run*, not
+SQL that runs and answers the *wrong question*. Retrieval surfaced the right
+knowledge every time; the ceiling is the 7B choosing the wrong piece of it. A larger
+model is the fix.
 
 ## Hardware sizing for client deployments
 
